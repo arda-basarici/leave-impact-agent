@@ -1,148 +1,450 @@
 # ARCHITECTURE — leave-impact-agent
 
-How it's built and why that structure — a narrative snapshot, edited in place.
-Decisions and their rationale live in DESIGN (cited here by name); the pitch in
-README.
+How it's built and why that structure: a snapshot of the tree as it stands, edited in
+place. Decisions and their rationale live in DESIGN (cited here by name); the pitch in
+README. How each part came to its shape is in git and in DESIGN's as-built passages,
+not here.
 
-*Snapshot at the world milestone's close, amended after the M1 repository audit and
-through the investigator milestone's first eight build steps and the generator step ·
-last updated 2026-10-21.*
+*Snapshot at the demo milestone's close · last updated 2026-11-09 · 284 modules in
+eleven packages under `src/leaveimpact`.*
 
 ## Design shape
 
 One package per responsibility, ranked; a module imports only its own package or a
 lower rank, and a few edges are denied on top of the ranks because they cross a trust
-boundary the ranks alone would permit. One line per package, what it may import:
+boundary the ranks alone would permit. One line per package, what it imports:
 
-    app        →  agent, cache, results, adapters, core   (the demo surface; never launch)
-    launch     →  agent, world, adapters, core     (the launcher the lifecycle runs; never app)
-    agent      →  adapters, core
-    evaluator  →  world, adapters, core
-    validator  →  world, adapters, core
-    generator  →  world, adapters, core
-    cache      →  world, adapters, core            (the corpus cache job on the instance)
-    adapters   →  world, core frappe · jira · calendar · corpus · prose — siblings apart;
-                              transport (timeouts, the retry rule, the fault seam) beneath them;
-                              world only for the sealed artifacts' names and document bytes
-                              (object_store) and the organization parameters and generator
-                              version a manifest records (manifest), never a scenario or a key
-    world      →  core
-    results    →  core                             (the public results schema, pure)
-    core       →  nothing inside the package
+    rank 4   app        →  agent, results, adapters, core     the demo surface and its worker
+             launch     →  agent, world, adapters, core       admissions for an operator's run
+    rank 3   agent      →  adapters, core                     the investigator, its baselines, the run log
+             evaluator  →  world, results, adapters, core     grading against the sealed truth
+             validator  →  world, adapters, core              read-only check of a projected world
+             generator  →  world, adapters, core              causes a world, then seals it
+             cache      →  world, adapters, core              the corpus cache job on the instance
+    rank 2   adapters   →  world, core                        one external boundary per subpackage
+    rank 1   world      →  core                               the benchmark, pure
+             results    →  core                               the public results schema, pure
+    rank 0   core       →  nothing inside the package         the domain, pure
+
+The package root holds two files and no rank: the package docstring and `__main__`, the
+image's command and the one composition root that may name packages of every rank.
 
 The rules, stated once:
 
-- **Downward only.** `core` (rank 0) under `world` and `results` (1) under `adapters`
-  (2) under the shells `generator`, `validator`, `evaluator`, `agent`, `cache` (3) under
-  `launch` and `app` (4), which never import one another.
-- **The investigator is blind to the benchmark.** `agent` and `app` never import
-  `world`, `generator`, `validator` or `evaluator` — the answer key is unreachable at
-  source level, not only by credential.
-- **Shells never import one another.** The generator cannot reach the validator or the
-  evaluator; read-only and non-echo are properties of the graph. The cache job never
-  imports a benchmark job either (`generator`, `validator`, `evaluator`): it reads sealed
-  world objects through the adapters and the world codecs alone.
+- **Downward only.** A module never imports a higher rank, and the five rank-3 shells
+  never import one another: the generator cannot reach the validator or the evaluator,
+  so read-only and non-echo are properties of the graph.
+- **The investigator and the page are blind to the benchmark.** `agent` and `app` never
+  import `world`, `generator`, `validator` or `evaluator`: the answer key is unreachable
+  at source level, not only by credential. `cache` and `launch` are denied the three
+  benchmark jobs and read `world` for its codecs alone: sealed documents and levels in
+  the cache job, the scenario specification (the question a run is asked) in the
+  launcher.
 - **The domain does not know synthetic worlds exist.** `core` never imports `world`.
-- **Pure below the adapters.** `core` and `world` perform no I/O.
-- **One adapter, one external boundary.** Sibling adapters never import one another;
-  a helper shared by all sits at the `adapters` level (`transport`: the HTTP session
-  under the retry rule, where a request declares whether it is replayable).
+- **Pure below the adapters.** `core` and `world` perform no I/O, read no clock and
+  take no credential or configuration; a job's values are parsed, typed and named once
+  at its `entrypoint` and passed down as plain data. `results` is pure but for one
+  read: `committed` loads the package's own committed file by package name.
+- **One adapter, one external boundary.** Sibling adapters never import one another; a
+  helper they share sits at the `adapters` level (`transport`: the HTTP session under
+  the retry rule, where a request declares whether it is replayable). An adapter
+  translates vendor shape to `core` types and never launders a fact.
 - **Identity at composition.** An adapter takes a credential; it never embodies a
   principal.
-- **Read-only is a module path.** The write ports live in `core/ports/write`, imported
-  only by `adapters` and `generator`; the validator and the investigator are readers by
-  construction, and the readers are re-exported from `core` while the writers are not.
-- **World time is explicit.** `RunContext` carries `now`; the wall clock is read only
-  at a composition root and converted into context at once.
+- **Writing is a module path.** The vendor write ports (`core/ports/write`) and the
+  object store's writers are imported only by `adapters` and `generator`, the corpus
+  cache's loader only by `adapters` and `cache`; the validator, the evaluator, the
+  investigator and the page are readers by construction. The readers are re-exported
+  from `core`; the writers are not.
 - **The answer key has named readers.** `world.truth_decoder`, the one decoder of the
   truth manifest, is imported only by the modules the law names by full path: the
   generator's resume, the evaluator's world loading and the audit-sheet script. This
   gate alone scans the operator's programs under `scripts` and `probes` beside the
   package, and a named reader that no longer imports the decoder fails as a stale
   grant.
+- **World time is explicit.** `RunContext` carries `now`; the wall clock is read only at
+  a composition root named by path (the package root, the surface's command line, the
+  worker's healthcheck) and converted into context at once. The run log reads the
+  database's clock and never the machine's.
 
-`tests/unit/test_import_law.py` holds every rule as a test, plus the ones that keep the
-law from failing open: every package under `src` must hold a rank; relative imports are
-banned because the edge scan cannot rank them; the top level holds only the package
-docstring and the composition root, so no unranked module can launder an edge; and an
-import is read with its aliases, so `from leaveimpact import world` names `world` as
-plainly as its dotted path does. The rank table named `evaluator`,
-`agent` and `app` ahead of their milestones; the first two were scaffolded at the
-investigator milestone's first build step, `app` at the demo milestone's.
+`tests/unit/test_import_law.py` holds the import rules among these as tests: the ranks,
+the lateral shells, the denied edges, sibling adapters, the write gate, the truth
+decoder's readers, a list of I/O libraries banned from the pure packages, and the wall
+clock's roots. That an adapter launders no fact, embodies no principal, and that no
+configuration reaches `core` are contracts held in review. The law also holds the
+rules that keep it from failing open: every package under `src` must hold a rank;
+relative imports
+are banned because the edge scan cannot rank them; the top level holds only the two
+files above, so no unranked module can launder an edge; an import is read with its
+aliases; a name re-exported through a permitted package is followed to the module that
+defines it, the written edge kept beside the resolved one; an import that binds the
+bare package name and a star import from inside the package are banned, since the scan
+can rank neither; and the writer gate's module scope is every statement that runs at
+import time, class bodies included.
 
-Three spellings the edge scan once read as something they were not are closed by name.
-A name imported from a module that itself imported it is followed to the module that
-defines it, so a benchmark name taken through an adapters namespace is the benchmark
-edge, the written edge kept beside the resolved one. An import that binds the bare
-package name (`import leaveimpact`, or a dotted form without `as`) is banned, as is a
-star import from inside the package, since the scan can rank neither. And the writer
-gate's module scope is every statement that runs at import time, the module-level
-`try` and `if` blocks and class bodies included; only a function body is local.
+Two separations are held by the packages' contracts and by no test. `app` and `launch`
+do not import one another, and neither do `world` and `results`: the law refuses a
+lateral import among the rank-3 shells only. The surface gets the demo's planner from
+`launch` through the package root, which imports both.
 
 ### The life of a world
 
-    seed + params + generator version
+    seed + parameters + generator version
         │  pure semantic generation (world)
         ▼
     world spec · scenarios · truth fact base · keys · briefs · the filler pool, minted
     last, with the levels that cut into it
-        │  materialization (generator ← adapters/prose): templates, LLM prose,
+        │  materialization (generator ← adapters/prose): templates, model-written prose,
         │  the containment gate; accepted text frozen, failures discarded
         ▼
     the sealed bundle: world spec · scenario specs · truth manifest
     world version = the hash of the three, in order
-        ├──► projectors (generator ← adapters) → Frappe · Jira · Calendar; the documents
-        │        seal into the world bucket, and the app's PostgreSQL is a cache the
-        │        loader fills from them (investigator milestone; unfilled today)
-        │        └──► world manifest (adapters/manifest): the resolved adapter
+        ├──► truth bucket: the world spec (validator and evaluator) and the truth
+        │    manifest (evaluator only); the application reads neither
+        ├──► projectors (generator ← adapters) → Frappe · Jira · Calendar
+        │        └──► the world manifest (adapters/manifest): the resolved adapter
         │             configuration, one locator per projected id, the world version
-        │             and digests — the projection's receipt and checkpoint, staged
-        │             preparing → projected, written after vendors mint ids, never hashed
-        ├──► world bucket: world manifest, scenario specs, documents, the levels
-        │    object (app-readable); the cache job on the instance admits each
-        │    version by the serving rule and fills PostgreSQL from it
-        ├──► or, unprojected (a development world): the truth pair, the documents and
-        │    the specs into a local store the repository ignores, no manifest; the
-        │    planted readers (adapters/plantings) present the spec as the three systems
-        │    to the benchmark's own principals, never to the app
-        └──► truth bucket: world-spec/ (validator + evaluator) ·
-        │                  truth-manifest/ (evaluator only); the app reads neither
+        │             and digests; the projection's receipt and checkpoint, staged
+        │             preparing → projected, written after the vendors mint ids;
+        │             outside the world version, its digest named by the verdict
+        ├──► world bucket, create-only: the documents, the scenario specs, the levels,
+        │    and the manifest last, so a manifest marks a completed projection
+        └──► or, unprojected (a development world): the truth pair, the documents and
+             the specs into a local store the repository ignores, the levels object
+             last as the completion record, no manifest; the planted readers
+             (adapters/plantings) present the spec as the three systems to the
+             benchmark's own principals, never to the application
         ▼
-    validator re-reads the live systems, re-derives structured expectations,
-    compares with the world spec — reads the spec and the systems, never the keys
+    validator: re-reads the live systems, re-derives the structured expectations and
+    compares them with the world spec; reads the spec and the systems, never the keys;
+    its verdict lands beside the world
+        ▼
+    cache job (on the instance, at each deploy): admits each version under the serving
+    rule (a completed projection approved by the current validator) and fills the
+    corpus tables in PostgreSQL from the sealed documents
 
 The seed identifies the semantic specification; the frozen bundle identifies the
-realized world (DESIGN, "The generator: pure specification, materialized prose, frozen
-world"). Every later artifact — an evaluation run, a report — records the world version
-and the truth digest, so a number months later is the same question about the same
-world.
+realized world (DESIGN, "Truth before prose"). Every later artifact, a run's export or
+an evaluation, records the world version and the truth digest, so a number months later
+is the same question about the same world.
+
+### The life of a run
+
+    a visitor's POST /start                         an operator's dispatch
+        │  app.start, under the log's session lock      │  launch plan, inside the image
+        │  for the demo's ledger: the recorded          │  on the instance: the frozen
+        │  request, the flag, the address window,       │  inputs from the registration,
+        │  the day's cap, one open run; the frozen      │  the price table, the cell and
+        │  inputs from launch.demo                      │  the scenario
+        ▼                                               ▼
+    admission (agent.log_store, one transaction): the attempt row, the first event, a
+    reservation against the shared ledger's threshold
+        ▼
+    the claim: one execution slot in the store, locked by every claim from either path
+        ├── the worker service (app.worker, its own container): each tick the sweeper's
+        │   pass, then the one attempt due, worked in a child process the service can
+        │   terminate, kill and reap
+        └── the operator's lifecycle (deploy/instance/lifecycle.sh): one command a word
+        ▼
+    one work order (agent.work_order → agent.worker → agent.graph), the same for both:
+    prefetch → prepare → model ⇄ tools → approval → terminal
+        │  reads go through the read ports (Frappe, Jira, Calendar, the corpus cache);
+        │  a model call is counted, authorized against the run's account, dispatched
+        │  once and attributed; every step is an event the pure transition admitted,
+        │  appended under the attempt row's lock, the graph's checkpoints beside it
+        ▼
+    the plan waits for a human: POST /decide (app.decide) approves or declines; an
+    evaluation run is approved by policy; the sweeper closes a wait past its deadline
+        ▼
+    the closing: an ending from the closed vocabulary, the settlement on the ledger
+        ├──► the pages (app), every read through one admission: the report and the audit
+        │    trail from the export the closed log folds to, the narration from the
+        │    log's events (as a timeline and as server-sent events), the ledger page
+        │    from the ledger's entries
+        └──► publication (the agent's publish and inventory commands, run by the
+             lifecycle or by the sweeper): the export and the harness inventory,
+             created once under the world bucket's runs prefix
+                 ▼
+             evaluator (its own job, under its own principal): proves the sealed
+             world, grades every stored export against it, and writes the evaluation
+             artifact beside the key in the truth bucket
+                 ▼
+             results: the artifact's aggregates as a committed public file, which the
+             results page renders; the artifact itself is never decoded
+
+The agent writes a run once and the evaluator grades it; neither may import the other,
+so everything both must read the same way lives in `core`: the claim vocabulary, the
+rules, the tool declarations, the prefetch, the registration, the run export and its
+codec, the account and eligibility rules. The harness runs a `core` function and the
+evaluator's audit replays the same one over the export.
+
+### Where state lives
+
+| store | holds | written by |
+|---|---|---|
+| Frappe, Jira, Google Calendar | the organization as its systems of record hold it | the generator's projectors; every other principal reads |
+| PostgreSQL on the instance | the run log (attempt rows, events, the shared ledger, publication records) with the graph's checkpoints; the surface's own tables (publishable attempts, live rows); the corpus cache | `agent.log_store`; `app.store`; `adapters.corpus.loader` |
+| the world bucket | sealed worlds under a create-only prefix, the mutable projection checkpoint, validator verdicts, run exports and inventories | the generator; the validator's verdict; `agent publish` |
+| the truth bucket | the world spec, the truth manifest, evaluation artifacts | the generator; the evaluator |
+| the repository | the registration, the price table, the public results file, the demo configuration, the released golden world under `docs/` | a commit |
+
+Each PostgreSQL schema has one owner in the tree. `agent/log_schema.sql` and
+`app/schema.sql` are applied by the deploy's two bootstrap commands, and every
+connection refuses a schema version other than its code's; `adapters/corpus/schema.sql`
+is applied by the cache loader, which reads the table's columns back before it loads.
+The buckets' policies, the hosts,
+the proxy, the backup units and the instance's first-boot configuration belong to the
+platform repository; this tree consumes their names as configuration.
+
+### What runs where
+
+| where | process | command |
+|---|---|---|
+| instance, container `app` (384m) | the demo surface | `python -m leaveimpact` |
+| instance, container `worker` (448m) | the worker service; one `work-one` child per attempt | `python -m leaveimpact.app worker` |
+| instance, container `postgres` (192m) | PostgreSQL 16 | |
+| instance, one run each per deploy | the cache job, the two schema bootstraps, the identity line | `leaveimpact.cache`, `leaveimpact.agent bootstrap-log`, `leaveimpact.app bootstrap`, `leaveimpact identity` |
+| instance, one or two runs per lifecycle word | an operator's run | `leaveimpact.launch` (the plan, then the status), `leaveimpact.agent admit`, `work`, `deliver-approval`, `publish`, `inventory` |
+| a GitHub runner, dispatched | generation, validation, evaluation, each under its own role | `leaveimpact.generator`, `leaveimpact.validator`, `leaveimpact.evaluator` |
+
+One image carries every command; a job is one command per execution with no queue
+between them, and the PostgreSQL log is the seam a second process continues from.
 
 ## Module responsibilities
 
-Signatures live in the docstrings, rendered by `scripts/regen_docs.py`; this table is
-the map.
+Signatures and contracts live in the docstrings, rendered by `scripts/regen_docs.py`;
+this section is the map. Modules are grouped by concern, each named once.
 
-| package | single responsibility |
-|---|---|
-| `core` | the domain, pure: types, ids, the predicate registry, the claim vocabulary with its grading keys, `RunContext`, the deterministic rules (viability, authority table, closure, constraint checks), the ports two consumers share — readers and writers in two modules, observed entities crossing, facts derived inside; since the investigator milestone's second build step also what the agent writes and the evaluator reads, since neither may import the other: `entities_json` the one codec of the seven observable kinds and the observed record (lifted from the world's spec codecs, which call it), `timeshape` the canonical shapes of a date, a zoned instant and a span, `provenance` the model configuration, `run_trace` / `run_record` / `run_export` the run export as plain data (the reads with their six outcomes and the primitives every part shares, the provenance block, the trace whole and the self-identifying root under a format version, 3 since the event log step), `run_export_json` its codec under the one byte rule with a bytes decoder that accepts only what re-encodes to itself, `pricing` the price table and the exact integer cost arithmetic in pico-dollars over dispatches, `tools` the method table, the fourteen tool specifications in canonical order (the documents enumeration the fourteenth, since the baselines step), generic validation, schema generation and the tool-surface digest, and since the registry step (the tenth) the roles with the investigator's ten, the typed refusal whose correction is built from the declaration and never the value, the closed correction set, and the digest's slot for the harness's own tools; since its fourth build step `coverage`, the slices of a source an answer can live in and where each predicate's facts are kept, with the proof every closure answer now carries (the facts, the gaps and each slice asked about), and `read_coverage`, the one mapping from a trace's operations to what they observed, kept here because the evaluator replaying a run and a harness concluding from its own reads need the same mapping and may not import each other; since its fifth build step the rest of what those two must compose the same way: `readings` the reading pass (grounding and viability of each impact) and the composing pass (each impact's need, requirements, required count and outcome), `read_condition` the condition a run's reads show, `read_projection` the structured projection of a trace's reads (each record as first returned, the usable ones derived and dated, a record no fact can be made from withdrawn and named, the view a system that reads no prose concludes from), `closure.citable_record` the record a witness can be cited by, `prefetch` the frozen prefetch as data with its planner, chunking by each tool's own bound, and the rule's digest, and `worldtime`'s day-span-to-instants conversion the planner needs; since its sixth build step the preregistration both of them read: `registration` the registration as plain data, at format 5 since the freeze step (3 at the event log step, 4 at the baselines step; frozen since 2026-10-14) (draft, frozen or bound, typed pending values on declared fields and the one reading of what a system's execution needs, the measured world, four system types under a kind tag with their roles by name and their caps, the corpus levels, the outage schedule with its computed digest, the cells with their conditional group, run accounting with the re-dispatch policy, the attribution table, the stated-fact contract, the statistics by name with one primary, the supporting comparisons, the prefetch and the budget) and `registration_json` its strict codec, one written form, a bytes decoder that accepts only what re-encodes to itself, and the procedure projection a bound registration shares with the frozen one it names; `attribution` the table that reads what a model dispatch observed, rows tried in order with a mandatory fallback per kind of observation, a defect only with a cause, its digest and codec; since the contract step what a model states and what becomes of it, again because the harness and the evaluator's replay need one reading and may not import each other: `stated` the stated fact (one of five predicates, its carrier, a verbatim quote, a requirement's target span) with what it holds at construction and its three statuses as three types (emission, admission, placement), `anchors` the lexical anchor table with the surface form and the lexicon it reads, lifted from the world's prose vocabulary, read one way by the generator's gate and another by the quote guard, with the one presence test and the table's digest, `binding` the span binding by exact title equality over the distinct artifacts a run read, `stated_view` the total join of the structured projection with the admitted statements (the readings that cannot stand together left out with a reason, a requirement whose scope cannot be used withheld on composition's word), `stated_json` their codec, `skills` the public skill vocabulary (lifted from the world's vocabulary, which names it from here), `admission` the five gates that decide whether a statement enters the view, with the lexicon a harness may build, `scoping` from the standing requirements to the constraints the rules may apply (one target per clause, a document meaning its one section), and `contradictions` the finder of two reads of one structured source that cannot both be true; and with export format 2 the parts format 1 could not state, each a module the export composes: `call_settings` a run's model configuration (any JSON setting in one spelling, apart from the generator's sealed provenance type), `usage` the raw usage object and the one reading of it the harness and the evaluator both run, `model_calls` the logical call with its dispatches (observation apart from attribution) and what an answer carried (tool calls with one disposition each, fact batches), `run_timing` segments and the two durations as functions over them, `run_ending` the failure's site, the abandonment with its authority, fenced generation and reason, the reservation with the amount charged, the approval, the composition and the segment's status, `run_parts_json` their codec and the review payload an approval's digest is over; and since the event log step the rules the harness runs and the evaluator audits, each pure over inputs defined beside it: `token_counting` the closed counting-rule registry and when a count is established, `input_bound` the closed method registry (the provider's count, the request fields it covers and the error that means a request cannot be counted), the established bound with its reuse test, the token worst case and the count-retry decision over a group's outcomes read three ways, `counting_operations` a counting request as a run records it with its five raw outcomes and the worker's reading, `run_account` the account as a fold over intents and outcomes, `authorize`, `settle` and the three figures (known, retained, total), `call_decision` the within-call decision with its five results, `eligibility` the closed vocabulary of endings, the one total function that says whether an attempt may follow and the two site names of endings no table row reads, and `inventory` the harness's inventory of its runs as plain data with its canonical codec and the digest that is its identity, written by the agent and read by the evaluator |
-| `world` | the benchmark, pure: the organization, the seeded plan, scenario classes and modifiers under the construction invariants, world assembly with the whole-world re-verification, truth facts with dated provenance, keys, the three artifacts in canonical bytes, the world version over them and the semantic digest of what the seed determines; the truth manifest's own types, projection and encoder in `artifacts` and its decoder alone in the gated `truth_decoder`, bytes accepted only when their re-encoding reproduces them; `runtime_view` the facts a run can obtain at its run day, and in `construction` the expectations (the conflicts and the unknowns a key holds) derived from `core`'s reading pass, which construction, assembly and the evaluator's oracle share since the fifth build step moved the pass itself into `core`; `prose` the vocabulary of materialized text — propositions, the derived namespace, the materialization record, and the lexical anchors named again from `core`, where they moved at the contract step — `briefs` the typed pending targets a model writes and the pre-compose contract, `composition` the pure placement of accepted prose into the semantic world and the composed world's own invariant; since the generator step `filler` the pool as a transform over a world and the one enumeration of a world's documents, `levels` the sealed levels and the plan a pool must describe, `disclosure` the mark a world is sealed under, `scope` the matcher the generator runs at assembly and the evaluator at load (moved here from the evaluator), `slices` dealing the windows by a seeded permutation and `assembly` constructing rows in a seeded random order, and the vocabulary's name book of fictional releases and clients with its one filler register |
-| `adapters` | one external boundary per subpackage — `frappe`, `jira`, `calendar`, `corpus`, `prose` — translating vendor shape and identity to `core` types, never laundering a fact (`prose` is the Converse translation for the writer and the checker behind a request-shaped seam, `seam` the request and answer types with the closed faults and `bedrock` the one call; prompt policy stays the generator's); `transport` beneath them carries timeouts, the retry rule and the fault seam; `filestore` is the byte primitive under every local artifact, one file replaced whole or not at all; `manifest` beside them is the world manifest, the configuration-and-receipt contract every reader of a projected world decodes; `object_store` is the bucket the sealed world lands in — `read` the capability every consumer holds, `write` the generator's alone under the import law, `s3` and `local` the readers of the two backends, `write` the writer protocol and the put's three outcomes (created; present and equal; present and unverified, returned by the S3 writer alone when the create was refused as present and the verifying read by access, which is the instance's grant), `s3_write` and `local_write` their gated writer subclasses; `layout` the key of every sealed object and, since the event log step, the runs prefix, a run attempt's export key naming the reader that built it and the inventory key naming its digest, `documents` the sealed documents read by id and enumerated, `documents_write` the projector's gated writer over them; `converse` beside them is the one translation from a provider-neutral tool definition to Converse's `toolSpec`, shared by the prose client and the investigator's surface since the registry step, each caller keeping its own request policy; `wiring` beside them is the read side both shells share — the deployment from the environment, the stores as readers, the four readers from a manifest, and the publication callables that close over a writer, the validator's verdict and, since the event log step, the run export's and the inventory's, each answering with the upload's key, digest and outcome; `plantings` beside the vendor adapters is the sealed world's plantings read as the three systems, the planted readers under the people, work and calendar ports, built from the truth store, so a development world is read by the benchmark's principals and never by the application; `inference` beside `prose` is the investigator's two live clients over Bedrock since the graph step, the Converse client a dispatch sends through and the counting client a request is bounded by, on one runtime client built with a single total attempt so a dispatch sends zero or once and every retry is the logged policy's, the answer kept as the service sent it, a service error's message entering the record as a signature and a client-side failure as its exception's type alone |
-| `generator` | the generation job: `materialize` is the attempt loop that writes every pending brief, gates each draft and keeps the record and the run's metrics, `guards` the three containment checks as pure functions, `prose` the prompt policy — the assets as package data with pinned digests, the render from a brief to the two requests, the checker's tool generated from the registry and the parse of what it filled; `fresh` the stage every fresh run shares before any external write (assemble, materialize, compose, bundle), the job's first half and the whole of the audit sheet's throwaway mode; `resume` rebuilds and proves a sealed realization from the truth bucket so sealing continues from its checkpoint, reading the sealed materialization record through `world`'s gated truth decoder as one of its named readers, `probe` the one-call-per-model check the probe workflow runs under the generator role; `projection` writes the frozen world restart-safe on each system's identity guarantee, `realize` is the composition root that checkpoints every calendar and receipt into the manifest and promotes it only after the site inspections and the coverage proof, `systems` wires the real adapters, `manifest_store` checkpoints the manifest to a file atomically or to the bucket's mutable prefix; `sealing` drives the ruled order — truth first, the site preparation and the vendor projection with the documents after its postflight, the scenario specs, every object read back, the manifest last with every version id; `recipe` the world recipe as plain data, what defines a world plus the prose stage's two run controls, apart from the boundary that parses it so the fresh stage loads no store on import; `entrypoint` is the configuration boundary (the recipe from the command line, the deployment from the environment, the stores it names), `metrics` the checkpoint timer at the shell, `__main__` the job; since the generator step the boundary also reads the seed from a secret's hex and the embargo and refuses a local root the repository does not ignore, `sealing` also seals an unprojected world (the truth pair, the documents and the specs by conditional create, read back, no checkpoint and no manifest), and `__main__` takes `--unprojected`, opens the stores alone and prints the prose metrics before a cap exhaustion propagates |
-| `validator` | read-only verification that projection realized the declared world: `verify` the integrity chain and the three layered checks, `verdict` the artifact, `entrypoint` the request from the command line and the composition that reads the sealed world, judges the live systems and publishes through the wiring's callable, `__main__` the job |
-| `evaluator` | grades recorded runs against the sealed truth in the frozen claim vocabulary, key match and payload apart, grounding as `core`'s rules replayed over the run's own reads; never re-reads a vendor, which is the validator's job before any run. The grading, since the investigator milestone's third build step: `sealed_world` loads the three sealed files through the object-store reader, joins them by scenario, proves the cited digests and the world version and reproduces every sealed key with assembly's whole-world re-verification, refusing the world whole with a message that carries no sealed content; `oracle` derives what the rules conclude under a condition over runtime truth through `core`'s composing pass, anchored on the sealed key under the normal condition, or states that no answer exists (the leave unreadable, the policy unreadable); the condition a run ran under is `core`'s `read_condition` since the fifth build step; `characterization` compares the dated view's complete answer with runtime truth's, per world and condition; `rows` is the grade as plain data, one typed record per expected or reported claim with expectation, presence, standing and payload apart, and `matching` writes it; `plan_checks` asks plan validity against the oracle, coherence within the report and coverage, one record per omission; `grading` gives every export one outcome, graded, limited or excluded, and reads whether a graded report is correct whole off its rows. What a run's own reads support, since the fourth build step: `world_index` is the sealed world by identity (every record, every comment and section, the facts each carries, the statements and their carriers, each requirement clause's scope with the proof that the clause's text states it); `observed_view` lays the sealed overlay over `core`'s structured projection of the run's reads (the prose a returned carrier admits, the comparison of every returned record with the sealed one) and reports every difference as an integrity finding; `plan_reading` is the one reading of a plan that coherence and the replay share; `replay` gives each claim its standing on premises taken from the run, `grounded` derives the end-to-end and the strict readings from its records, `citations` judges each evidence reference on three axes. What a run did: `trace_metrics` is the entry that returns the outcome with the metrics beside it, from `source_discipline` (one row per operation, the findings no conforming harness records), `cost_check` (usage and cost recomputed in three layers), `prefetch_conformance` (the prefetch reads against the frozen plan's obligations, reconstructed from what each read returned) and, since the outage step, `membership_conformance` (the reads outside the prefetch against each system's contract: the one-call baselines' one harness read, owed when a dispatch exists and compared through the shared query renderer under the registered values or against the level's sealed membership), `proof_contribution` (which reads first supplied what a proof rests on), `retrieval_targets` (the statements an answer depends on, by removal through the oracle) and `retrieval` (which of them a run's reads returned). Tables: `cells` groups evaluated runs by system, assigned condition and assigned corpus level with the scenario as the unit and keeps the accounting, `measures` and `evidence_measures` state each ratio as one run's numerator and denominator with its scope, `intervals` holds Wilson and the seeded tier-stratified bootstrap, `tables` estimates a measure or a check in a cell, pairs two systems or two levels of one, and keeps the cost ledger; what the preregistration fixes is an argument to these and chosen nowhere in them. Under the registration, since the sixth build step: `attempts` reads a run's attempts as a history (the counted attempt by the registered rule, the gap, the excess attempt, the attempt after a stopping outcome, the attempt its predecessor did not permit, and since the event log step the attempts the harness inventory lists with no export, which leave the run with no counted attempt); `run_checks` holds the three checks a registration can name; `registered` resolves the registration's names against the registries here and projects the plan the tables are cut under, naming each registered cell it leaves out with why; `diagnostics` holds repeat consistency and the degraded table, raw counts both; `headroom` counts per place the scenarios the reference system does not already pass, and `incidents` reports by scenario the runs that met a source contradicting itself, every evaluated export of the world read for it, and apart from those each attempt that ran on more than one harness commit, neither removing anything from a table; `analysis` computes every registered table from a set of evaluated runs in one pure pass; `prefetch_conformance` checks a trace's prefetch reads against obligations reconstructed from what each read returned, a sixth part of the trace metrics. Stated facts, since the contract step: `fact_recheck` decides the admission of every stated fact and the composition again from the export and names where the record differs; `level_check` holds every document a run was shown to the membership the sealed world gives for the level its record assigns; `fact_stages` says how far each prose statement the answer needs got in a run and what each emission was against the sealed world; these are the seventh to ninth parts of the trace metrics, and `mechanism` states the four stages as measures with the supporting detail tallied per cell. What a record states about itself in format 2's fields, the tenth and eleventh parts: `ending_check` holds the segments, the elapsed time and the approval's digest to the export (an active time above the elapsed, segments on two commits, a digest that is not the exported payload's), and `attribution_check` reads every dispatch again by the registered table, under each cause a harness can supply, and holds each call to what its rows allow to follow and to the re-dispatch bound; `source_discipline` also tallies the tool calls by disposition and names the sends an SDK retried. Since the event log step the twelfth to fifteenth parts, each on the `core` function the harness ran: `account_check` replays every recorded authorization over the account as it stood and holds the run to its reservation and its token cap (a rules-only export's account is not evaluated, since it reserves nothing), `count_check` holds every bound to the counting operation it names and every operation to its own outcome read again, `call_check` reads each call's standing under the table and the policy and whether the attempt ended where its calls say, and `eligibility_check` projects an exported attempt's ending into the closed vocabulary and asks whether it permitted the attempt after it; `ending_check` also reports a terminal instant before the admission and a fenced generation that is not the segment count. The artifact: `artifact` is one evaluation as plain data and the pure function that makes it (every stored object listed with its version, digest, cost and one reason, eligibility on the registration's bytes and the recorded settings, the label derived from the registration, a bound registration held to its world and to the frozen procedure it names); `artifact_json` its written form, an encoder derived from the types with no decoder, held by a format version and a pinned list of key paths; since the event log step `harness_inventory` reads the one inventory an evaluation names, verified against its name and narrowed to the world, gives every stored object its standing from its key, holds every listed export present as recorded, selects the in-scope and the open attempts and the unexported attempts per run, and counts the whole's coverage, and the artifact (format 9, its listing of stored objects named `listing` apart from the harness inventory) records the inventory it was held to and that coverage beside the listing. The job: `repository` reads the job's own checkout through git (a clean tree, the registration at a cited commit, the implementation paths changed since the registration), `entrypoint` holds the two commands as compositions over readers (prove a world, evaluate its stored runs, the second reading the named inventory apart from the listing, refusing an undecodable one by its key alone and gating a reported evaluation on an open in-scope attempt), and `__main__` composes them from the environment, takes the inventory's digest as a required argument of the evaluation, and prints what a public log may hold; the workflow is `evaluate-run.yml`; since the generator step `sealed_world` carries the disclosure mark and the semantic digest, `repository` finds the paths holding a digest, both commands refuse an embargoed world whose digests the checkout holds and print `withheld` for what the mark covers, and the scope matcher `world_index` runs is `world`'s; since the demo milestone's public switch `public_crawl` holds the hostname half of the disclosure sweep (the page list from the replay listing's own links, one fetched body read against the embargoed digests' cited forms and the gate test's structural patterns, the external hosts as a fact), the script under `scripts/` doing the fetching under the administrator profile |
-| `agent` | the investigator and the three preregistered baselines it is measured against (rules-only, single-shot, full context), over the read ports alone, claims in the frozen vocabulary, a plan a human approves; the loop's framework contained inside the package. Since the investigator milestone's fifth build step: `execution` is the one path for a declared tool call (validation, the port and the method, one recorded operation with one of the six outcomes, a model's refusal recorded and the prefetch's raised, a source stopped at its first unreachable answer), the prefetch run over it and, since the outage step, the registered outage injected over the composed ports (`ports_under`, one typed reader raising the ports' unreachable error per scheduled-out source, applied at the composition root from the admission's recorded assignment); `rules_only` the first system (the prefetch, the structured projection as its whole view, a defect at its operation or an abstention with no claims, the composer given no statement); `report` the one reporting policy that writes the rules' conclusions as claims, constraints among them; since the contract step `composer` the one path from a run's reads and the admitted statements to claims (the join, the binding and the scope rules, the shared rules, the report) with the composing policy every rules-composed export records, and `fact_entries` the parser of a model's fact entries, an unreadable one kept whole beside its reason; `export` the run as the artifact the evaluator grades, under the provenance the harness supplies and the approval the run path decided (`approval`, the automatic policy applied before the export is built, since the exporter projects and decides nothing); since the sixth build step `registered` builds that provenance from the decoded registration and refuses a cell that is not registered or whose group is not decided as run, a pending variant, or an outage protocol, a prefetch, a composing policy or an anchor table other than this code's. Since the event log step (the eighth), the harness's execution control, ownership and accounting, pure modules beside one PostgreSQL module, which the evaluator may never import: `log_events` the sixteen event kinds with their keys, two envelopes, codecs and digests, `log_transition` the one pure function that says which event may follow and the attempt state it folds to, `log_ending` the ending, the status and the projection of a state into the eligibility vocabulary, `log_reader` a closed log to its format 3 export (the parse derived, the admissions rebuilt over the reads logged before each answer, each tool call's disposition by the reader's rule), `answer_parse` the one protocol over the provider's response object, `ledger` the shared ledger's pure half (five entry kinds, the head, the decisions the store applies), `log_schema.sql` the schema at version 3 applied idempotently and checked at every connection, `log_store` the PostgreSQL module (the attempt row's lock and counters, admission as one transaction, the claim, the append, the closing with its settlement, the one-snapshot read at repeatable read, the ledger commands and the publication records), `appender` the stamped writer one generation's nodes append through, `graph` the execution skeleton (six nodes over the appender since the baselines step, the system's content behind small protocols for the turns, the preparation, the model client, the token counter and the approval handoff), `worker` one process's ownership of one attempt from the load to the ending it leaves, the handler at the driver, `inventory` the store's snapshot as plain data and the inventory built from it, pure, `commands` the seven commands over plain data (admit, work, deliver an approval, abandon, publish, write the inventory, set the threshold), and `__main__` their command line, one command per execution and no queue; the import law permits `psycopg` here, the store reading the database's clock and never the machine's. Since the registry step (the tenth): `surface` what the model sees of its reads, pure over the log's resolution (the role's definitions as Converse sends them, one envelope per operation stamped with the admitted `now`, a skip rendered as its unreachable source, a refusal answered with the closed correction derived by running the validation again, the provisional surface digest), `corpus` the reader built from the admitted version and level with the adapter's serving check run first, the executor over a surface (the prefetch's the fourteen, the tools node's the role's). Since the graph step (the eleventh): `assets` the three prompt texts as package data with their digests, `turns` the investigator's content over the skeleton, the request of each logical call and the review payload as pure functions of the log (the first turn from the opening, the skill list and the prefetch, each later exchange the answer as arrived with one result per tool use, the finalization forced to the fact tool, a call ended as behaviour contributing nothing), `admissions` each answer's facts under the gates over the reads logged before it, one derivation the log reader and the turns share, `conclusion` the preconditions every rules-composed system decides (a defect at its operation, an abstention, the universe), pure, shared by the baseline and asked by the transition on every operation append, `surface` also the fact tool's definition generated from the parser's entry schema and what the harness answers a fact call, an unparsed call or an undispatched call with, `registered` also the agent's provenance under a draft, the development attribution table and re-dispatch policy its production home, every bound value compared and every pending one recorded, and `__main__`'s `work` the composition root, the real fillings over an admitted attempt. Since the baselines step (the twelfth): `request_parts` what every model system's request builds the same way (the first message over the prefetch, a logged operation as a text block, the inference settings, the finalization's tool configuration, the composed payload), `one_call` the two one-call baselines' turns under the `reader` role (one request flagged final over the prefetch and the harness's one read, then nothing more), `preparations` the one harness read each issues between the prefetch and its call (the registered query rendered over the prefetch's records at the registered limit; the level's documents in one enumeration), the skeleton's `prepare` node between the prefetch and the first call with the shared preconditions asked first and the context-fit check at the dispatch (a request over the role's allowance refused before any send), `registered`'s provenance over the three model systems by kind with the single-shot's protocol and limit copied into the frozen inputs, and `commands.system_content`, the one chooser of a system's content the work command and the probes compose from |
-| `launch` | the launcher the lifecycle's launch step runs inside the deployed image (the first live run's step): `plan` fills a model system's role from the registered role alone, composes through the work command's provenance, reserves through `core.pricing.run_reservation` and freezes what an admission records, restates the plan as the work line's cell flags, and reads the next step off an attempt's state under a recovery bound of two stated in PROTOCOL; `__main__` the `plan` command, which writes the request file and the flags under the run's directory, and `status`, which reads the attempt back and answers the next word the runner-side driver acts on. The host and runner sides of the lifecycle are shell, not Python: `deploy/instance/lifecycle.sh` (one word a send, each one `docker compose run` of this image) and `deploy/runner/investigate.sh` (the walk over the launcher's answers), both read by the fake-binary tests and by shellcheck in CI |
-| `cache` | the corpus cache job the deploy runs on the instance: `job` discovers the versions under `worlds/`, admits each by the serving rule (`adapters/object_store/serving`), reads the levels object and every receipted document, verifies them against the manifest and loads them through the corpus loader; `__main__` the composition root over the world store and `DATABASE_URL` |
-| `results` | the published results, pure: the aggregate figures of a measurement as a public data file (an estimate at a stratum, a paired comparison, a cell's cost, the registered plan, the provenance and the disclosures; nothing per scenario, no prose, no digest of the measurement world's sealed objects), the types that say what such a file may hold, their one written form, and the committed instances read by package name so a built image finds them wherever it runs; the demo surface reads it and the evaluator writes into it, since neither may import the other |
-| `app` | the demo surface (demo milestone): the HTTP shell a stranger reads the golden world's investigations through, FastAPI with server-side templates behind the platform's proxy; `config` the demo's own configuration file (the served world as an allowlist of one, the site, the registered system and level, the registration by digest, the demo's ledger, the daily count, the wait and wall bounds, the live flag off by default) and its strict decoder; since the publishability step (M3 step 4) `public` the public names and view data (a replay addressed by an operator-chosen slug, never a run id), `schema.sql` and `store` the surface's own PostgreSQL module beside the log's (the table of publishable attempts referencing the log's attempt row, a singleton version row, one bounded connection per operation, the publication's five outcomes decided by the two uniqueness constraints), `read_model` the one admission every read passes (a projection for the listing, a log-checked resolution for content that refuses a row the admission contradicts, the registration's rules checked against the configured digest), `publishing` the operator's draft (world and scenario copied from the admission; an open or other-world attempt refused), this package's `__main__` the operator commands (`bootstrap` the deploy runs, `publish`); `ready` the readiness read the deploy consults (store, served world, app schema version); `main` the application factory with every route classified public-global or attempt-scoped and one not-found page for every refusal; since the report step (M3 step 5) `report` the report view (pure functions from a closed attempt's export to the page's plain view data: the ending first, the condition, the claims in the manager's order with one deterministic sentence each, every citation resolved from the run's own recorded reads with the core's coverage rule deciding withdrawal) and `trail` the audit trail's view (every operation, call, dispatch and count with the anchors the report links to, the ledger's three amounts apart), `amounts` the money and token labels with floors and absence kept from totals, `markup` the quote marking that escapes every piece before the one trusted tag, the templates one per claim type and per reference kind under a strict-undefined environment; since the narration step (M3 step 6) `narration` the one line per logged event, built by replaying the log through the transition so each line is a function of its prefix, and the timeline view over it, `stream` the server-sent events over a session per tick (the bounded subscriptions, the cursor by position, the closing frame, the heartbeat), the timeline template with the one inline script, which places each line as text; since the results step (M3 step 7) `results` the results view (pure functions from the committed public results to the page's plain data: counts over denominators, intervals named with method and direction, costs as a labelled mean beside the recorded median with floors said, the entry ruling's labels as constants built from the file where it holds the fact), the results page rendered from a view decoded once at the application's creation, the served-world line in the base template on every page; since the replay step (M3 step 8) `walkthroughs` the three introduced replays' prose (a committed file keyed by public name, decoded once at the application's creation like the results; a row is introduced by the title the operator fixed at its publish, the file supplies what to inspect and what to see, the listing shows those rows first and the report page carries the prose above the ending; an entry without a titled row is unreachable, never an error); since the backup step (M3 step 9) `restore` the restore drill's verification (the checks a restored scratch database must pass before a backup counts as recoverable: the app schema at the code's version, the served world marked ready by the cache the dump carried, the backup's capture equal to the `ledger_capture` view the app schema owns since its version 2, every ledger head folding from its entries, every closed attempt under the served registration recharged by the account rule and equal to the logged and the settled, the listing, one replay folded and built; reads only, through the surface's own admission and fold), this package's `__main__` gaining `verify-restore`, which the platform's monthly restore-check unit calls with the capture on stdin after both bootstraps; serving dispatched from the package root's `__main__` beside the identity line and the image smoke. Store access synchronous on the thread pool, a log session per request, Pydantic for HTTP input only, every read through the one publishability admission; the import law permits `psycopg` here as in `agent` |
+### `core` — the domain, pure (67 modules)
+
+What the real system believes, with no knowledge that a benchmark exists, and
+everything the investigator and the evaluator must read the same way.
+
+- **The vocabulary.** `entities`, `ids`, `enums`, `values`, `refs`, `predicates` (each
+  fact kind with its value, system of record and evidence domain), `facts`, `claims`
+  (six typed claims with their grading keys), `skills`, `comments`, `worldtime`.
+- **The deterministic rules.** `derivation` (an observed record to facts and gaps;
+  its reading of a criterion is exhaustive over the closed union, so a kind added
+  without a reading fails the type check), `closure`, `coverage`, `authority`,
+  `grounding`, `viability`, `plans`, `checks`, `readings`, `scoping`, `contradictions`.
+- **The ports.** `ports/read` and `ports/write`, four protocols each, `ports/observed`
+  (an entity as a source returned it) and `ports/errors`. A port returns observed
+  entities; facts are derived inside.
+- **Tools and the prefetch.** `tools` (the fourteen read tools as declarations, the
+  roles, validation, the surface digest), `prefetch` (the frozen prefetch as data with
+  its planner and digest), `query_protocol` (the single-shot baseline's one query).
+- **What a run's reads show.** `read_coverage`, `read_condition`, `read_projection`.
+- **Stated facts.** `stated`, `anchors`, `binding`, `admission`, `stated_view`: what a
+  model says a text asserts, and the gates that decide whether it enters the view.
+- **The run as plain data.** `run_trace`, `run_record`, `run_export`, `model_calls`,
+  `usage`, `call_settings`, `provenance`, `run_timing`, `run_ending`.
+- **Accounting and control.** `pricing` (exact integer cost from a committed table),
+  `token_counting`, `input_bound`, `counting_operations`, `run_account`,
+  `call_decision`, `attribution`, `eligibility`.
+- **The preregistration and the inventory.** `registration`, `inventory`.
+- **Codecs.** `claims_json`, `entities_json`, `values_json`, `stated_json`,
+  `run_export_json`, `run_parts_json`, `registration_json`, `timeshape`, `jsonshape`.
+  One written form each; a bytes decoder accepts only what re-encodes to itself.
+
+### `world` — the benchmark, pure (29 modules)
+
+Everything that exists only because the world is constructed.
+
+- **The organization.** `org` (seed and `OrgParams` in, the organization out; a
+  generation dial lives in `OrgParams` or does not exist, so a world's provenance is
+  complete), `vocabulary`, `zones`.
+- **The plan and its scenarios.** `plan`, `scenario`, `classes`, the three tiers
+  `structured`, `fragmented` and `adversarial`, `modifiers`, `construction`, `slices`,
+  `assembly` (every scenario, then the whole-world re-verification). The seed enters at
+  organization generation and at assembly; assembly draws one seed per plan row and one
+  for the filler pool from its own stream before it draws the construction order, and
+  each row is built from its own generator.
+- **Truth.** `truth_facts`, `runtime_view` (the facts a run can obtain at its run day),
+  `scope` (the one matcher the generator runs at assembly and the evaluator at load).
+- **Prose targets.** `prose` (what a text may claim, and the record of how a model's
+  text was accepted; a proposition is a `world` type because the sealed record holds
+  it), `briefs` (the typed pending targets and the pre-compose contract, which refuses
+  in code a brief whose allowed context is not a fact of its world), `composition`,
+  `filler`, `filler_mint`, `levels`.
+- **Sealing.** `artifacts` (the three artifacts in canonical bytes, the world version),
+  `decoders`, `target_records`, `truth_decoder` (gated), `disclosure`, `version`.
+
+### `adapters` — one external boundary per subpackage (36 modules)
+
+- **The vendors.** `frappe`, `jira` and `calendar`, each an `adapter` over the vendor's
+  REST surface and `records` for the shapes in both directions.
+- **The corpus.** `corpus`: the document reader over the PostgreSQL cache, scoped to a
+  world version and a level (`adapter`), the gated `loader`, `records`, `schema.sql`.
+- **The models.** `prose` (the generator's writer and checker behind a request-shaped
+  seam, `seam` and `bedrock`), `inference` (the investigator's Converse client and
+  counting client, one send per call so every retry is the logged policy's),
+  `converse` (the one translation of a tool definition to Converse's shape).
+- **The object store.** `object_store`: `read` and the gated `write`, the two backends
+  split by capability (`s3`, `s3_write`, `local`, `local_write`), `layout` (the key of
+  every sealed object), `documents` and `documents_write`, `serving` (which versions
+  the application may serve) with `verdicts`.
+- **Beside them.** `transport`, `filestore` (one file replaced whole or not at all),
+  `manifest` (the world manifest), `plantings` (a sealed world read as the three
+  systems), `wiring` (the read side the composition roots share: the deployment from
+  the environment, the readers built, the publication callables).
+
+`adapters` reads `world` for the sealed artifacts' names and bytes, the levels, and the
+organization parameters and generator version a manifest records; `plantings` alone
+reads a world spec's planted records, and nothing here reads a key.
+
+### `generator` — causes a world, then seals it (20 modules)
+
+- **The prose stage.** `materialize` (the attempt loop over every pending brief:
+  briefs run on a small thread pool and merge in brief order, so the record is the same
+  at any worker count; a cap exhausted marks its target and the stage reports every
+  failed target together; a model that cannot be used aborts the stage as
+  infrastructure), `guards` (the three containment checks, pure), `checkpoint`, and
+  `prose` (`assets`, `render`, `schema`: the prompt policy and the checker's tool
+  generated from the predicate registry). Text a class writes itself carries its fact
+  with no brief and never enters the loop. Model identifiers come from the environment
+  and their absence fails the start; inference settings are code; the calls run on the
+  job's ambient role and no credential is held.
+- **From a recipe to a bundle.** `recipe`, `fresh`, `resume` (a named reader of the
+  truth decoder).
+- **Projection and sealing.** `projection`, `realize` (prepare, checkpoint, project,
+  prove, promote), `systems`, `manifest_store`, `sealing` (truth first, the manifest
+  last, every object read back).
+- **The job.** `entrypoint`, `metrics`, `probe`, `__main__`.
+
+### `validator` — read-only verification of a projected world (6 modules)
+
+`verify` (inputs authenticated, systems read, checks run), `checks` (identities,
+records, the view of a run, as pure comparisons), `verdict` (its own artifact, approved
+only when every check passed), `entrypoint`, `__main__`. It reads the world spec and the
+live systems and never a key.
+
+### `evaluator` — grades recorded runs against the sealed truth (53 modules)
+
+Never re-reads a vendor; grounding is `core`'s rules replayed over a run's own reads.
+
+- **The world a run is graded against.** `sealed_world` (the three sealed files joined
+  and proven, every key reproduced), `world_index`, `oracle` (what the rules conclude
+  under a condition over runtime truth), `characterization`.
+- **The grade.** `rows`, `matching`, `plan_checks`, `plan_reading`, `grading` (one
+  outcome per export: graded, limited or excluded).
+- **What a run's reads support.** `observed_view`, `replay`, `grounded`, `citations`.
+- **What a run did.** `trace_metrics` over `source_discipline`, `cost_check`,
+  `prefetch_conformance`, `membership_conformance`, `proof_contribution`,
+  `retrieval_targets`, `retrieval`, `fact_recheck`, `level_check`, `fact_stages`,
+  `ending_check`, `attribution_check`, `account_check`, `count_check`, `call_check`,
+  `eligibility_check`: each audit on the `core` function the harness ran.
+- **Tables.** `cells`, `measures`, `evidence_measures`, `mechanism`, `intervals`
+  (Wilson and the seeded tier-stratified bootstrap), `tables`, `diagnostics`,
+  `headroom`, `incidents`.
+- **Under the registration.** `attempts`, `run_checks`, `registered`, `analysis` (every
+  registered table in one pure pass), `harness_inventory`.
+- **The artifact and what is published of it.** `artifact`, `artifact_json` (an
+  encoder, no decoder), `public_results`, `public_acceptance`, `public_crawl`.
+- **The job.** `repository`, `entrypoint`, `__main__`.
+
+### `agent` — the investigator, its baselines and the run log (32 modules)
+
+The systems the benchmark measures, over the read ports alone; the loop's framework is
+contained inside this package.
+
+- **Reads and composition.** `execution` (the one path for a declared tool call),
+  `conclusion`, `composer` (from a run's reads and the admitted statements to claims),
+  `report`, `fact_entries`, `rules_only`, `export`, `approval`.
+- **The model systems' content.** `assets`, `surface` (what the model sees of its
+  reads), `corpus`, `turns`, `admissions`, `request_parts`, `one_call`, `preparations`.
+- **Under the registration.** `registered` (a run's provenance read from the
+  preregistration, so nothing it fixes reaches a run from a literal).
+- **The run log, pure.** `log_events` (seventeen kinds, closed), `log_transition` (the
+  one function that says which event may follow, and the state it folds to),
+  `log_ending`, `log_reader` (a closed log to its export), `answer_parse`, `ledger`,
+  `inventory`.
+- **The run log, stored and driven.** `log_store` with `log_schema.sql` (the attempt
+  row's lock, admission as one transaction, the claim, the append, the closing with its
+  settlement, the ledger), `appender`, `graph` (the six-node skeleton), `worker` (one
+  process's ownership of one attempt), `work_order` (the composition every root
+  performs), `commands`, `__main__`.
+
+### `launch` — admissions for an operator's run (4 modules)
+
+`plan` (the frozen inputs of a run, the work line's flags, the next step of the
+lifecycle from an attempt's state), `demo` (the same inputs for a visitor's run),
+`__main__`. The host and runner sides of the lifecycle are shell:
+`deploy/instance/lifecycle.sh` and `deploy/runner/investigate.sh`, read by fake-binary
+tests and by shellcheck in CI.
+
+### `cache` — the corpus cache job (3 modules)
+
+`job` (discover, admit by the serving rule, read, verify against the manifest, load,
+demote what the rule no longer serves), `__main__`.
+
+### `results` — the published results, pure (4 modules)
+
+`public` (what a results page may show of a measurement: aggregates, nothing per
+scenario, no digest of the measurement world's sealed objects), `codec`, `committed`.
+The surface reads it and the evaluator writes into it, since neither may import the
+other.
+
+### `app` — the demo surface and its worker (28 modules, 30 templates)
+
+FastAPI with server-side templates behind the platform's proxy. Store access is
+synchronous on the thread pool with nothing held open while a browser waits; Pydantic
+parses HTTP input only.
+
+- **Configuration and names.** `config` (the served world as an allowlist of one, the
+  registered system, the ledger, the caps and bounds, the live flag), `public`, `live`,
+  `roles`, `amounts`, `markup`.
+- **The stores and the one admission.** `store` with `schema.sql`, `read_model` (a
+  projection for the listing, a log-checked resolution for content), `publishing`,
+  `publication_check`, `ready`.
+- **The live path.** `start`, `decide`, `window`, `sweeper` (one pure function from a
+  snapshot to actions, each performed through the agent's commands), `worker` (the
+  single-flight service and its supervised child), `heartbeat`.
+- **The pages.** Pure view functions over an export, a log or a committed file:
+  `report`, `trail`, `narration`, `results`, `ledger_page`, `walkthroughs`; templates
+  format nothing themselves. `stream` serves the narration as server-sent events, an
+  asynchronous generator over short synchronous reads.
+- **Operations.** `restore` (what a restored scratch database must show before a
+  backup counts as recoverable), `main` (the routes and the application factory),
+  `__main__` (bootstrap, publish, verify-restore, verify-publications, sweep, worker,
+  worker-health, work-one).
+
+### What is versioned
+
+Each persisted form carries a version, and a reader names the set it accepts.
+
+| form | version | read |
+|---|---|---|
+| the run log's events | 4 | 3 and 4 |
+| the run export | 4 | 3 and 4 |
+| the harness inventory | 2 | 1 and 2 |
+| the registration | 5 | one written form, strict |
+| the evaluation artifact | 10 | written, never decoded |
+| the run log's schema · the surface's schema | 6 · 3 | advanced by the bootstrap, checked on every connection |
+| the generator | 19 | a world records the version that sealed it |
+
+## Tests
+
+Levels are markers, and the default run is everything unmarked: the 260 files of
+`tests/unit` and every module's doctests, the network blocked. `integration` runs over
+the PostgreSQL service and recorded cassettes; `crash` is the crash matrix, child
+processes killed at named crossings, in a CI job of its own; `slow` is the twenty-seed
+sweeps of the generator's invariants, two files of `tests/unit` in a CI job beside the
+gate; `live` runs only against a real sandbox and is selected by hand; `e2e` is
+declared and holds no test. The import law and the disclosure gate enumerate the tree,
+so an edit anywhere can fail them. One test pins the set of built scenario classes that
+no offered plan names; the set is empty today.
+
+In-memory implementations of both sides of a port live under `tests`; an
+`adapters/memory` package would call memory an external system.
 
 ## A rank law alone would have let the investigator read the answer key
 
 **Denied edges sit above the ranks.** The first cut of the layout was a plain rank
 order, `world` at rank 1 and `agent` at rank 3, which made `from leaveimpact.world
 import truth` a legal import in the investigator. Credentials would still have kept the
-truth bucket out of reach at run time, but the whole answer-key design (DESIGN, "The
-answer-key contract") rests on the agent working only from what landed in the systems,
+truth bucket out of reach at run time, but the whole answer-key design (DESIGN, "Keeping
+the benchmark out of the product") rests on the agent working only from what landed in
+the systems,
 and a boundary that only the deployment enforces is a boundary the test suite cannot
 see. The law therefore has two parts: ranks for the default direction, and an explicit
 denied-edge table for the trust boundaries. The same reasoning promoted the validator
@@ -150,32 +452,43 @@ to its own package: inside `generator`, nothing could have stopped a validator m
 from importing a projector, and "read-only" would have been a comment.
 
 **`world` stays apart from `core` however small it is.** The two hold different kinds
-of things — what the real system believes, and what exists only because the world is
-constructed — and the production investigator should depend on the first without
+of things, what the real system believes and what exists only because the world is
+constructed, and the production investigator should depend on the first without
 depending on the second. A merged package would keep the files apart and lose the
 property.
 
+**The worker runs its work in a child process.** The worker service first ran an
+attempt in its own process, and a probe of blocked work showed that shape losing the
+first stop signal: the graph's checkpoint writes go to an executor whose exit waits for
+every pending future, so a write stuck on a lock held the signal's exception behind it.
+A child the service can terminate, wait on, kill and reap ends whatever its threads are
+doing, and the service closes the attempt it lost in the same tick.
+
 ## Deliberately not done (restraint)
 
-- **`app` is named, not created.** Empty placeholder packages would be structure for
-  its own sake; each milestone scaffolds its own after its own design session.
-  `evaluator` and `agent` were scaffolded at the investigator milestone's first build
-  step, each holding its contract docstring and nothing else until its first module
-  landed, and both hold modules now; `app` waits the same way for the demo milestone.
+- **No queue and no worker pool.** A job is one command per execution over the
+  PostgreSQL log, and the demo runs one attempt at a time in one execution slot. The
+  event log and its checkpoints are the job seam a different execution shape would
+  attach to (DESIGN, "Ephemeral compute on AWS").
 - **The purity guard is a banned-import list, not an allowlist.** It catches the
   libraries this project actually uses for I/O and misses `open()`; the pure packages
-  are also reviewed as pure. Revisit if the guard ever proves thin in review.
+  are also reviewed as pure. An allowlist replaces it if the guard ever proves thin in
+  review.
 - **The generator-version rule is enforced by a snapshot pair, not proven in general.**
   A recorded digest of the vocabulary tables and a recorded interpreter minor version
-  fail the suite when either changes, so the fix lands in the same file as the version
-  and the diff shows whether the version moved. Since the bundle step, a reference
-  seed's world version is recorded beside the generator version as a pair in the tests:
-  a changed hash with an unchanged version fails, which catches an unbumped change to
-  the drawing algorithm too; re-cutting the pair is the deliberate act that accompanies
-  a bump. What no test can catch is a change that leaves the reference world's bytes
-  untouched — that stays with review.
-- **No ports beyond the four the generator and investigator share.** The prose
+  fail the suite when either changes, and a reference seed's semantic digest is
+  recorded beside the generator version under two plans: a changed digest with an
+  unchanged version fails, which catches an unbumped change to the drawing algorithm
+  too. The digest is the semantic one because two runs of one seed share it and differ
+  in the world version by design. What no test can catch is a change that leaves both
+  reference digests untouched; that stays with review.
+- **No ports beyond the four the generator and the investigator share.** The prose
   renderer has one consumer and stays a seam inside its adapter. A port is added when a
   second consumer appears, not before. The write side of each port has one production
-  consumer and is declared anyway — for the least-privilege type the import law enforces
+  consumer and is declared anyway, for the least-privilege type the import law enforces
   and the in-memory implementation under `tests`, not for symmetry.
+- **No grading on the page.** The surface may not import the evaluator and cannot read
+  the truth bucket, so a replay shows what the run claimed and read, and the measured
+  results come from the committed file.
+- **No client framework.** Pages are server-rendered templates; the one inline script
+  places narration lines as text while an attempt is open.
