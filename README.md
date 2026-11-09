@@ -1,274 +1,310 @@
+<div align="center">
+
 # Leave Impact Agent
 
-Agentic leave-impact and coverage planning across organizational tools.
-
-An AI agent that investigates what an employee's leave actually means operationally —
-reading the HRMS, issue tracker, calendar, and chat — and drafts an evidence-backed
-coverage plan for a human to approve. Deterministic rules handle the normal path; the
-agent investigates the exceptions; the human decides.
+**What does one employee's leave actually affect, and can you check the answer
+yourself?**
 
 [![CI](https://github.com/arda-basarici/leave-impact-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/arda-basarici/leave-impact-agent/actions/workflows/ci.yml)
+[![live demo](https://img.shields.io/badge/live%20demo-leave--agent.ardabasarici.dev-2ea44f)](https://leave-agent.ardabasarici.dev)
+[![report](https://img.shields.io/badge/report-PDF-b31b1b)](report/where-the-single-call-stops.pdf)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-**Status: three milestones are closed, the last on 2026-11-09. The demo is public at
-`https://leave-agent.ardabasarici.dev`: thirty replays of the investigator on the golden
-world with their reports, evidence, audit trails and narration timelines, the results
-page for the measurement, and capped live runs a visitor starts and then approves or
-declines. The one registered result is the investigator milestone's: on the measurement
-world's thirty scenarios the investigator is correct in every part on 24 at both corpus
-levels, against a full-context single call that is 30 of 30 at the base level and 14 of
-30 at the padded level; the registered primary difference, at the padded level, is 0.20
-to 0.47 at 95 percent (`probes/FINDINGS.md`, `phase-c`).** The three sections below say
-what each milestone built and what it established. This README grows with the build and
-never claims ahead of it.
+![python](https://img.shields.io/badge/python-3.13-3776ab)
+![LangGraph](https://img.shields.io/badge/LangGraph-1c3c3c)
+![Amazon Bedrock](https://img.shields.io/badge/Amazon%20Bedrock-01a88d)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-336791)
+![Docker](https://img.shields.io/badge/Docker-2496ed)
+![AWS](https://img.shields.io/badge/AWS-232f3e)
+![evaluation](https://img.shields.io/badge/evaluation-preregistered-8250df)
 
-> **What this is and is not.** A benchmark with ground truth by construction, and the
-> agent graded on it. The organization is synthetic and small (about thirty people,
-> thirty scenarios); the vendor systems are real. It is not a product, not a study of
-> any real workforce, and its one claim about an agent's accuracy is the registered
-> primary comparison above: thirty scenarios of one synthetic organization, one run
-> each, intervals wide at that size, every development run excluded from the tables by
-> the preregistration. The golden world the demo serves is the world the investigator
-> was developed against, so what the demo's pages and the demo section below say of it
-> describes those runs and is no second claim.
+</div>
 
-## What the world milestone established
+An LLM agent reads an organization's HR system, issue tracker, calendar and
+documents, works out which deadlines and meetings a leave affects and who can
+cover them, and drafts a coverage plan for a person to approve. Every claim in
+the plan links to the record it was read from. The model reports facts and
+quotes the text each one came from, and deterministic rules draw every
+conclusion from those facts. The systems are real instances of Frappe HR, Jira
+and Google Calendar. The organization inside them is synthetic and was
+generated together with its answer key, so the agent is graded against a known
+right answer.
 
-A generator builds a synthetic organization and thirty scenarios in three difficulty
-tiers from a seed, materializes the prose those scenarios need through gated model
-calls, projects the world into real Frappe HR, Jira and Google Calendar instances, and
-seals the answer key where the application cannot reach it. An independent validator
-re-reads the live systems and approves a world only when every enumeration is exact and
-every record equals its planting. A hand-audit protocol, under which the first golden
-world was read scenario by scenario, sealed its audit beside the world. Closed on
-2026-09-19.
+*Solo, end to end: the benchmark, the agent, the evaluation, and the deployment
+on AWS.*
 
-- The golden plan (thirty scenarios, three tiers, eleven classes) constructed on 199 of
-  200 seeds against the default organization under the construction order the first
-  golden world was built with, scarcest class first. Under the random order the
-  generator has used since, which keeps a scenario's identifiers from following its
-  tier, it constructs on 196 of the same 200 (`probes/FINDINGS.md`, `reservation-book`,
-  runs 3 and 4). Every refusal is loud and named. That is feasibility evidence, not a
-  proof of collision freedom: whole-world verification stays the oracle.
-- The first golden world passed a hand audit of every scenario and seventeen deep
-  traces with thirty accepts and no defect in the world. The audit verifies the key
-  against the rules as coded and a human reading of the evidence, sharing the rules'
-  dated view; thirteen scenarios rest on the pass and a recount rather than a trace.
-- Model-written prose enters the world only under semantic containment (a lexical
-  guard, an extraction check by a second model family, a human read of every
-  answer-changing text); the stage costs well under a dollar per world, and its
-  accepted texts converge on one sentence frame, a realism limitation on record.
+> [!IMPORTANT]
+> **Live: [leave-agent.ardabasarici.dev](https://leave-agent.ardabasarici.dev).**
+> Read [one investigation with its evidence](https://leave-agent.ardabasarici.dev/replays/scenario-004),
+> follow [the same run event by event](https://leave-agent.ardabasarici.dev/replays/scenario-004/timeline),
+> or start a live run and decide on the plan it drafts. Live runs are capped at
+> five a day, and [the ledger](https://leave-agent.ardabasarici.dev/ledger)
+> shows what they have cost.
 
-## What the investigator milestone established
+## The result
 
-The evaluator takes a recorded run and the sealed answer key and grades the run claim
-by claim, checks its plan, replays its conclusions from what the run itself read, and
-computes the tables a committed preregistration names; it runs under its own identity
-and never re-reads a vendor. The investigator is measured against three baselines:
-the deterministic rules over structured reads with no model, built and graded end to
-end on a throwaway world, and a single-shot and a full-context call over the
-investigator's own harness.
+Four systems answered the same thirty leave scenarios at two corpus sizes. The
+scenarios come in three tiers of ten: answerable from records alone, dependent
+on facts that live only in prose, and built around a trap. The **base level**
+is the organization's own documents, about 10,500 tokens when sent to a model
+in one request. The **padded level** adds 160 filler documents and takes that
+request to about 42,500 tokens. A scenario counts only when it is **correct
+whole**: every required claim present and right, nothing unexpected claimed,
+and no finding against the answer key in the plan.
 
-The investigator runs on LangGraph over an event log that is the authority for
-recovery, audit and the run export: a frozen prefetch of the structured records,
-reading turns through tools generated from the read ports by a role-scoped registry
-(MCP was weighed and not chosen because one in-process consumer of a small owned read
-surface gains nothing from a protocol, and it returns with an external client that
-needs one), and one forced finalization in which the model states facts with the words
-it read them from, the rules composing every claim; full-text retrieval over sections
-is the core, and the vector arm, declared as a supporting comparison, was decided not
-built at the freeze and is exploratory on the measured world after it.
+The comparison was **registered**: written down with its analysis and frozen at
+a commit before the world it was measured on was generated.
 
-The loop ran live on the first development world under a draft registration, 105 runs
-across fifteen prompt rounds, every one closing through a valid forced fact call, the
-prompt revised against named failures and recorded with its digests; those runs are
-development runs, graded for the plumbing and not reported as a result. The lifecycle
-then ran under production: a workflow sends each step to the instance, the host runs
-the deployed image against the live vendor systems and the real store, a human approves
-in a private session when the policy asks for one, and the export is published where
-the evaluator reads it; the investigator under both approval policies and the three
-baselines each ran once on one scenario of a development world, every job green on its
-first dispatch after four fixes the laptop's fakes could not have found, and one
-evaluation graded all five. The procedure was then frozen before the measurement world
-existed, that world drawn from a secret seed, validated and audited, the registration
-bound to it, and the 240 registered runs dispatched one at a time through the deployed
-lifecycle and graded in one reported evaluation. The measurement ran on 2026-10-16 and
-17, and the milestone closed on the 17th.
+<div align="center">
+<img src="report/figures/headline.png" alt="Scenarios correct whole out of thirty for the four systems at the two corpus levels, with 95 percent Wilson intervals" width="720"/>
 
-- The primary comparison, registered before the measurement world existed: the
-  investigator correct in every part on 24 of 30 scenarios at the padded corpus level
-  against full context's 14, the difference 0.20 to 0.47 at 95 percent, ten scenarios
-  the investigator alone passes and none the other way. The investigator is 24 of 30 at
-  both levels; rules alone pass the structured ten and nothing else, so twenty scenarios
-  are where any system can differ.
-- Why the one-call reader loses: at the base level full context is 30 of 30 with every
-  claim strictly correct, and at the padded level 24 of its 30 calls stop at the
-  8,192-token output maximum with the fact batch malformed. The freeze ruled that output saturation is
-  reported as a mechanism and never as evidence of an input limit, and the report keeps
-  to that. The investigator's six misses are all fragmented-tier scenarios at both
-  levels; its mechanism measure shows every needed carrier returned and the facts not
-  stated.
-- The measurement discipline: the procedure frozen at a commit before the world was
-  drawn, the world from a secret seed, validated and hand-audited, the registration
-  bound to it, every run through the deployed lifecycle, the evaluation under its own
-  identity with the harness inventory it was held to. One repeat a scenario, so the
-  intervals are over scenarios and say nothing of run-to-run variability; four outage
-  cells and four supporting comparisons were decided not run at the freeze and are
-  reported as such; the 240 runs cost $9.96 of model spend.
+*Scenarios correct whole, of thirty, with 95 percent Wilson intervals. Filled
+marks are the base level, hollow marks the padded level.*
+</div>
 
-## What the demo milestone established
+| System | Base level | Padded level |
+|---|---:|---:|
+| **Investigator**, a tool loop that reads in turns | 24 of 30 | **24 of 30** |
+| Full context, one call shown every document | **30 of 30** | 14 of 30 |
+| Single shot, one retrieval then one call | 22 of 30 | 10 of 30 |
+| Rules only, no model | 10 of 30 | 10 of 30 |
 
-The demo is a web surface on one small instance: the application (FastAPI, pages
-rendered on the server), a worker service and PostgreSQL, three containers behind the
-proxy. Every replay page is a read of what a run recorded. The report and the audit trail come
-from the run's export, the evidence shown is what the run itself read and nothing is
-fetched again for the page, and the narration is the run's event log replayed through
-the transition the harness ran, as a timeline and as a stream of server-sent events. A
-visitor's live run takes the same admission, the same work order and the same log as an
-operator's dispatched one: the worker service runs one attempt at a time in a child
-process it can terminate, and the plan waits for the visitor to approve or decline it.
-Closed on 2026-11-09; the figures below are `probes/FINDINGS.md` entries, named beside
+At the base level the full-context system is correct on all thirty scenarios,
+and the investigator on 24. At the padded level 24 of its 30 calls end at the
+8,192-token output maximum with the list of facts cut off, and it falls to 14,
+while the investigator stays at 24. The registered primary comparison is that
+padded difference: 33 percentage points of scenarios, with an interval of 20 to
+47 at 95 percent, paired by scenario.
+
+Every system ran under the same output maximum. The one-call reader is asked to
+list every fact in everything it was shown, so what it must write grows with
+the corpus. The investigator lists the facts its searches returned.
+
+The padded level exists because of an early probe. Before any model-reading
+system was built, one call read a corpus of about ten thousand tokens and
+reached the top score, which left a loop no room to do better. So a larger
+level was added, and its size was fixed before the measurement world existed.
+
+> **What this result is and is not.** One synthetic organization of 28 people,
+> one model (Claude Haiku 4.5) in every system that calls one, one run per
+> scenario, so the interval is over scenarios and says nothing about run-to-run
+> variation. The padded size was chosen as the smallest candidate at which the
+> single call failed on an earlier world used for development. The stop is a
+> limit on what a call may write, and no evidence of a limit on what the model
+> can read. A one-call reader with a larger output allowance, or one that wrote
+> its answer over several calls, would face a different comparison. The two
+> kinds of system were not tuned alike: the investigator's prompts went through
+> fifteen development rounds and the one-call readers' instruction through four.
+> The documents are near-template prose, so the result tests reading what is
+> stated and not inference. The report's sixth chapter lists the rest of what
+> this does not show.
+
+Full write-up: [Where the Single Call Stops](report/where-the-single-call-stops.pdf)
+(PDF) · the same table on [the demo's results page](https://leave-agent.ardabasarici.dev/results).
+
+## How a run works
+
+```mermaid
+flowchart LR
+    A([a leave]) --> B[prefetch] --> C[read] --> D[state facts] --> E[rules conclude] --> F([approval])
+```
+
+**prefetch**: the structured records of the HR system, the tracker and the
+calendar, read once and then fixed for the run · **read**: the model reads in
+turns, through tools scoped to its role and a full-text search over document
+sections · **state facts**: one forced final call in which the model lists what
+it read, each fact with its quote · **rules conclude**: deterministic rules
+compose every claim and the coverage plan from the facts that pass the checks ·
+**approval**: a live run waits for its visitor to approve or decline. A run
+with no person present, such as a replay, records an automatic approval, and
+the log marks it as automatic.
+
+The loop is a LangGraph graph with its checkpoint in PostgreSQL. Every step is
+also an event in one log, and that log is what recovery, the audit trail and
+the public replays are read from. Below, part of one public replay: a deadline
+the leave affects with the tracker record behind it, and a colleague ruled out
+because the component's member list, shown under the claim, does not include
 them.
 
-- **The replays.** The registered investigator ran once on each of the golden world's
-  thirty scenarios through the deployed lifecycle, for $2.0967 of model spend, and
-  every run is public with its report, its evidence, its audit trail and its timeline.
-  In the operator's offline grading 26 of the 30 are correct in every part (10, 7 and 9
-  of ten in the structured, fragmented and adversarial tiers), and the four misses
-  share one shape, a corpus clause's requirement left unstated, which is the mechanism
-  the measurement found on its own world (`replay-set`).
-- **What a public reader can reach.** Before the hostname served the application the
-  tree was swept for anything of the embargoed measurement world and the golden world
-  was released whole under `docs/golden-world/`, answer keys included. Once it served,
-  a crawl of the 124 public pages through the hostname held in every form a reader
-  receives them: the raw bodies, the HTML-decoded text and the JSON-decoded stream
-  frames (`disclosure-sweep`, `golden-release`, `public-switch`). The milestone's exit was written as the URL used
-  unassisted by a stranger. That test was skipped by a ruling on 2026-10-25, and the
-  exit on record is the URL with the crawl held.
-- **Backup and restore.** The database is dumped nightly by the platform's unit. The
-  first dump was restored into a scratch database and the application's own
-  `verify-restore` passed seven checks of seven over it, 214 closed attempts recharged
-  (`backup-restore-drill`). A recovery loses up to a day, and the instance runbook says
-  what is reconciled from the bill afterwards.
-- **Live runs, capped.** A start is admitted against a ledger whose wall the operator
-  sets by hand ($8 for the first public month), five runs a day and two an address, one
-  attempt on the host at a time; a plan nobody decides within fifteen minutes is closed
-  by the worker's sweeper, and a decline is an ending of its own in the log. The ledger
-  page shows every charge, and an operator flag (`live_runs` in the demo configuration)
-  stops new admissions and nothing else. The path was accepted on production on 2026-11-01 and again
-  on 2026-11-09 with Cloudflare Access in front of the Frappe hostnames, and live runs
-  have stayed on since: six runs settled on the visitors' ledger for $0.4088 in all;
-  eight held streams on an open attempt cost the application 0.131 s of CPU a second
-  above idle against a budget of 0.2; the worker peaked at 292.4 MiB under its 448 MiB
-  limit (`live-acceptance`, `final-smoke`).
-- **One criterion not met as written.** The final smoke asked that an open attempt's
-  frames reach a subscriber within 2 s of their recorded instants at the 95th
-  percentile. It read 2.00 and 2.09 s, on a measure that carries the offset between two
-  clocks, bounded there only to 1.3 to 1.5 s, so it cannot resolve a two-second line.
-  The intervals between the frames' arrivals, the measure the first acceptance's bound
-  was held on, kept the recorded ones at 0.55 and 0.60 s. It stays recorded as not met.
+<div align="center">
+<img src="docs/screenshots/replay-evidence.png" alt="Part of a replay report: a deadline the leave affects with the Jira record behind it, and a candidate who cannot cover it with the component record behind that" width="560"/>
+</div>
+
+Going deeper from here: **[ARCHITECTURE](ARCHITECTURE.md)** is the five-minute
+read (the package ranks, how a world is built, how a run moves), and
+**[DESIGN](DESIGN.md)** is the long one, the decisions with the alternatives
+that lost.
+
+## The build, milestone by milestone
+
+Two worlds appear below. The **golden world** was audited by hand, is one of
+the worlds the agent was developed on, and is public with its answer keys. The
+**measurement world** was generated from a secret seed after the procedure was
+frozen. The result above comes from it, and it stays sealed.
+
+| milestone | what shipped | the headline |
+|---|---|---|
+| the world, closed 2026-09-19 | a generator that builds the organization and thirty scenarios from a seed, writes them into live Frappe HR, Jira and Google Calendar, and seals the answer key where the application cannot read it; an independent validator; a hand-audit protocol | the golden world passed a hand audit of all thirty scenarios with no defect found in it |
+| the investigator, closed 2026-10-17 | the agent on LangGraph over an event log, three baselines, an evaluator that grades claim by claim, and the registration | **24 of 30 against full context's 14** at the padded level; 240 registered runs for $9.96 of model spend |
+| the demo, closed 2026-11-09 | the public site on one small AWS instance: thirty replays read from the runs' own records, the results page, and live runs a visitor starts and then approves or declines | live runs are on and capped; six have settled for $0.41 in all |
+| the conversation, next | a manager questions an investigation, with answers grounded in the same evidence and evaluated on the same scenarios | not started |
+
+## What was measured, and where each number stops
+
+The entries behind these rows are in [`probes/FINDINGS.md`](probes/FINDINGS.md)
+and the report.
+
+| claim | measured | where it stops |
+|---|---|---|
+| the registered comparison | investigator **24 of 30**, full context **14 of 30** at the padded level; 33 points, paired interval 20 to 47 at 95 percent | thirty scenarios, one run each. Registered and then decided not run, before any result was seen: full context with a source system unavailable, and four supporting comparisons |
+| why the single call stops | 24 of its 30 padded calls end at the 8,192-token output maximum, and 15 of its 16 failures had a stopped call | reported as output saturation, never as an input limit. One alternative instruction was probed in development and traded the stops for missed facts; nothing further was tried |
+| where the investigator fails | six misses, the same six scenarios at both levels. Every document it needed was returned to the run; five needed facts were then not stated, and one was stated in a form the rules could not use | all six are in the prose-only tier. Six facts and six scenarios are different units, and the equal totals do not show a one-to-one match |
+| what rules alone reach | 10 of 30, exactly the tier answerable from records | so twenty scenarios are where a system that reads documents can differ |
+| the public replays | 26 of 30 correct whole when graded offline, $2.10 of model spend | the demo serves the golden world, which the agent was developed against, so this describes those runs and is no second result |
+| a visitor's run | reserves $2.17 before its first model call and settles at six to seven cents | the six settled runs all came from the project's own acceptance sessions; the planned test with a stranger was skipped by a ruling, and no use by anyone outside is on record |
+| backup and restore | the first nightly dump restored into a scratch database, where seven checks of seven passed | run once, by hand, on the same PostgreSQL service as the live database, so it proves the archive and not a fresh host; a recovery loses up to a day |
+| one criterion not met | a run's events were to reach a viewer within 2 s at the 95th percentile; two runs read 2.0001 and 2.09 s | the measure carries the offset between two clocks, bounded only to 1.3 to 1.5 s, so it cannot resolve a two-second line; recorded as not met |
+
+Dollar figures are the harness's own pricing from the registered price table
+and have not been reconciled against the provider's bill.
+
+## The engineering underneath
+
+- **The answer key is out of the application's reach.** It sits in a bucket the
+  application's AWS role has no permission on, and a probe after every deploy
+  checks that a list and a read of it are refused. In the source, an import
+  test keeps the agent and the web surface from importing the benchmark
+  packages at all. The repository was searched for the sealed world's
+  identifying hashes before the site went public, and the 124 public pages
+  were crawled for them once it was up.
+- **The model cannot conclude.** It reads, then lists facts with their quotes
+  in one forced final call. The rules compose every claim and the plan from
+  the facts that are admitted.
+- **One event log is the authority.** Recovery after a crash, the audit trail,
+  the run's export and the public timeline are all reads of the same log in
+  PostgreSQL. A crash matrix in CI kills child processes at named points against
+  the real database.
+- **The measurement was registered first.** The procedure, the caps and the
+  analysis were frozen at a commit before the measurement world was drawn. The
+  evaluator runs under its own identity, reads exports and never re-reads a
+  vendor. The report's tables are built from the committed results by a pinned
+  build.
+- **Spend is admitted before it is made.** A run takes its reservation against
+  a ledger in the transaction that admits it. Visitors get five runs a day and
+  two an address, one attempt on the host at a time, under a ceiling set by
+  hand ($8 for the first public month).
+- **Deploys hold no stored cloud keys.** After a required review the deploy job
+  assumes a role through GitHub's OIDC trust, and that role may send commands
+  only to instances carrying the application's tag, through Systems Manager.
+- **Two things deliberately not built.** MCP was weighed and not chosen: one
+  in-process consumer of a small owned read surface gains nothing from a
+  protocol, and the question reopens with an external client that needs one. A
+  vector retrieval arm was registered as a supporting comparison and decided
+  not built at the freeze; retrieval is full-text search over document
+  sections.
+
+## Stack
+
+| stack | where it earns its place |
+|---|---|
+| Python 3.13 · uv | a typed package; lint, types, unit tests and doctests gate every change |
+| LangGraph | the investigator's loop: the graph orchestrates the tool turns and its interrupt carries the approval step. Chosen over a hand-rolled loop; the tools and the read ports know nothing of the framework, and recovery across processes comes from the event log, not the checkpoint |
+| Amazon Bedrock | Claude Haiku 4.5 for every system that calls a model, through the Converse API |
+| PostgreSQL · psycopg 3 | the event log, the spend ledger and the corpus the agent searches |
+| FastAPI · Jinja2 · server-sent events | the demo: pages rendered on the server, a live run's timeline streamed |
+| Docker · GitHub Actions · AWS | three containers on one instance, reviewer-gated workflows, deploys through OIDC and Systems Manager |
+| Frappe HR · Jira · Google Calendar | the external systems a world is written into and the agent reads |
 
 ## Run the checks
 
-Needs `uv`, `just`, and Docker. No command here runs a system against a world: the
-rules-only baseline runs inside the unit tests on a throwaway world, and an evaluation
-of stored runs is a dispatched workflow (below).
+Needs `uv`, `just` and Docker. None of these commands calls a model or a vendor
+system; the rules-only baseline runs inside the unit tests on a throwaway
+world.
 
 ```
 uv sync                 # locked environment, dev tools included
 just hooks              # once per clone: pre-commit (secret scan + lint)
 just check              # the fast subset of CI: lint, types, unit tests + doctests, docs build
-# set POSTGRES_PASSWORD (letters+digits) and PGDATA_HOST (absolute path) as user env vars — no .env
+# set POSTGRES_PASSWORD (letters+digits) and PGDATA_HOST (absolute path) as user env vars, no .env
 docker network create web   # once per machine: the proxy network the stack joins
 just db-up              # dev PostgreSQL on 127.0.0.1:5432
-just test-integration   # the integration level: recorded vendor cassettes + the real PostgreSQL
+just test-integration   # recorded vendor cassettes + the real PostgreSQL
 just db-down
 ```
 
-`just --list` shows the rest (`coverage`, `test-all`, `test-live`, `test-record`,
-`docs`). The integration level replays recorded HTTP cassettes of the three vendor
-sandboxes, so it needs no credentials; re-recording them does, and the `live` level
-reaches the two prose models for real.
+The integration level replays recorded HTTP cassettes of the three vendor
+sandboxes, so it needs no credentials. `just --list` shows the rest.
 
 ## The benchmark workflows
 
-A world is never generated from a workstation or from the application's host. `generate
-world` and `validate world` are dispatched GitHub workflows under the reviewer-gated
-`benchmark` environment, each assuming its own OIDC-trusted AWS role: the generator
-writes the world and its truth, the validator reads the world and writes nothing but its
-verdict. `evaluate run` proves a sealed world and grades its stored runs under a third
-role, in its own reviewer-gated `evaluation` environment; it reads the answer key and
-writes one evaluation artifact. `probe bedrock` is the live check on the two prose
-models and `probe access` the check that a runner passes the Access application in
-front of the Frappe hostnames. The application's
-own role reads projected worlds and has no capability over the truth, which a boundary
-probe proves on every deploy.
+A world that is written into the live systems is never generated from a
+workstation or from the application's host. The three benchmark jobs are
+dispatched GitHub workflows, each behind a reviewer-gated environment and each
+under an AWS role of its own.
 
-An operator's run is dispatched too: `investigate` sends a run to the instance one
-lifecycle step at a time under the reviewer-gated `production` environment, and
-`continue run` delivers a reviewer's approval to a waiting attempt or picks up one whose
-job ended early. The 240 measured runs and the thirty
-replays were made that way. A visitor's run on the demo needs no workflow.
+| workflow | environment | what its role may do |
+|---|---|---|
+| `generate world` | benchmark | write a world and its answer key |
+| `validate world` | benchmark | read a world and the live systems; write only its verdict |
+| `evaluate run` | evaluation | read the answer key and stored runs; write one evaluation artifact |
+
+An operator's run is dispatched too (`investigate`, `continue run`), under the
+same reviewer-gated production environment and role as the deploy. The 240
+measured runs and the thirty replays were made that way. A visitor's run on the
+demo needs no workflow.
 
 ## Layout
 
-- `src/leaveimpact/` — the package, eleven subpackages by rank: `core` (the domain and
-  its pure rules) · `world` (the benchmark: the organization, the scenarios, the truth,
-  the sealed artifacts) · `results` (the public results schema) · `adapters` (one
-  external boundary each: Frappe HR, Jira, Google Calendar, the document corpus, the
-  prose models, the object store) · `generator`, `validator` and `evaluator` (the
-  shells that build a world, check its projection and grade a run) · `cache` (the
-  corpus cache job on the instance) · `agent` (the investigator, the three baselines it
-  is measured against and the run log) · `launch` (admissions for an operator's run) ·
-  `app` (the demo surface and its worker). ARCHITECTURE.md has the layout and the
-  import rules; `tests/unit/test_import_law.py` holds the import rules listed there as
-  tests, and the same document names what is held in review and the two separations
-  that rest on the packages' contracts alone.
-- `preregistration/` — `registration.json`, what the investigator milestone measures and
-  how the result is read, frozen on 2026-10-14 before the measurement world exists and
-  bound to it once the world is accepted; `prices.json`, the price table every
-  run is priced from, with its sources in `PRICES.md`; `PROTOCOL.md` explains the files.
-- `tests/{unit,integration,live,e2e}/` — the test levels (DESIGN, "Verification"); the
-  vendor cassettes live under `tests/integration/cassettes/`.
-- `AUDIT_METHODOLOGY.md` — how a generated world becomes a golden set;
-  `scripts/audit_sheet.py` renders the sheet the audit reads and `scripts/audit_index.py`
-  verifies and seals the audit's index. The first golden world, the one the demo serves,
-  is released whole under `docs/golden-world/` (its three sealed objects, answer keys
-  included, with an index); the measurement world's stay in the truth bucket until the
-  last measurement on it. `docs/examples/audit_sheet_throwaway.md` shows the sheet's
-  shape on a throwaway-seed world, and `scripts/audit_sheet.py --released
-  docs/golden-world` renders it for the released one.
-- `probes/` — the preregistered unknowns of the probe days, the build's probes (each
-  written before it ran), the phase C dispatcher with its committed plan and ledger and
-  the two scripts behind the reported numbers, and `FINDINGS.md`, every outcome;
-  `scripts/regen_docs.py` — the API reference, generated from docstrings, never edited.
-- `report/` — the milestone report: committed Markdown chapters, the pins that read
-  every figure a chapter states from the committed results, the registration or a
-  recorded FINDINGS row, the figure scripts, and the build (`just report`); the
-  rendered PDF is committed at the freeze and served from the portfolio site.
-- `Dockerfile`, `compose.yaml` — the deploy unit and the instance's stack;
-  `compose.dev.yaml` — the laptop overlay; `deploy/instance/` — the deployment
-  entrypoint the CI deploy job runs on the host, the boundary probe that follows it, the
-  run lifecycle's host side, and the runbook (its README); `deploy/runner/` — the driver
-  the run workflows use; `deploy/frappe/` — the Frappe HR stack on the box. The host
-  itself (Terraform, the deploy role, the parameter names, the proxy, the backup units)
-  is owned by the `platform` repository, stack `leave-impact-prod`.
-- `.github/workflows/` — `ci` (check, the slow sweeps, the crash matrix, image, deploy
-  behind an approval), the three benchmark workflows (generate world, validate world,
-  evaluate run), the two run workflows (investigate, continue run), the two probes
-  (bedrock, access), the custom Frappe image build and the base-image mirror.
+The package is `src/leaveimpact/`, eleven subpackages in five ranks. A module
+never imports a higher rank.
 
-## Reading order
+| rank | packages | responsibility |
+|---|---|---|
+| 0 | `core` | the domain and its pure rules; imports nothing else in the package |
+| 1 | `world` · `results` | the benchmark (organization, scenarios, truth, sealed artifacts) · the public results schema |
+| 2 | `adapters` | one external boundary each: Frappe HR, Jira, Google Calendar, the document corpus, the models, the object store |
+| 3 | `generator` · `validator` · `evaluator` · `cache` · `agent` | build a world · check what was written · grade a run · fill the corpus cache on the instance · the investigator, its three baselines and the run log |
+| 4 | `launch` · `app` | admissions for an operator's run · the demo site and its worker |
 
-DESIGN.md holds the decisions and their reasoning, organized for the reader who has to
-trust the ground truth: what a valid answer is, how the world and its prose are
-constructed, the classes that leave the easy path, sealing and the audit, the boundaries
-that keep the benchmark out of the product, and the deployment; ARCHITECTURE.md the
-package shape as the tree stands, the life of a world and of a run, and the import law;
-AUDIT_METHODOLOGY.md what "golden" means here; `probes/FINDINGS.md` every probe's and
-every acceptance's outcome; `deploy/instance/README.md` how the host is deployed to and
-operated; REPORT_NOTES.md the decision narratives, newest first; VISION.md the founding
-snapshot, frozen.
+A unit test holds the ranks and the edges denied on top of them.
+[ARCHITECTURE](ARCHITECTURE.md) lists what that test holds and what rests on
+review. Beside the package: `preregistration/` (the registration and the price
+table), `probes/` (each probe and its outcome), `report/` (the report and its
+build), `docs/golden-world/` (the golden world, released with its answer keys)
+and `deploy/` (the instance's entrypoint and runbook). The host itself
+(Terraform, the proxy, the backup units) is owned by the
+[platform repository](https://github.com/arda-basarici/platform).
+
+## What it demonstrates
+
+An LLM agent built so that what it says can be checked and what it can cost is
+bounded. Conclusions come from deterministic rules over facts the model quotes.
+The agent is graded against an answer key generated with its world, in a
+comparison frozen before the data existed. Spend is capped by a ledger, the
+answer key is sealed from the application, and a plan is a draft until it is
+approved.
+
+## Development note
+
+**Built with AI assistance, under review.** An AI coding agent wrote much of
+the code, the tests and the documentation drafts. The design decisions, the
+benchmark, the evaluation method and the hand audit of the golden world are the
+author's, and review findings were reproduced on the source before they were
+acted on.
+
+## Deeper
+
+[the live demo](https://leave-agent.ardabasarici.dev) ·
+[the report](report/where-the-single-call-stops.pdf) ·
+[DESIGN](DESIGN.md), the decisions and their reasoning ·
+[ARCHITECTURE](ARCHITECTURE.md), the tree as it stands ·
+[AUDIT_METHODOLOGY](AUDIT_METHODOLOGY.md), what "golden" means here ·
+[FINDINGS](probes/FINDINGS.md), every probe's outcome ·
+[the instance runbook](deploy/instance/README.md) ·
+[REPORT_NOTES](REPORT_NOTES.md), the decision narratives ·
+[VISION](VISION.md), the founding snapshot, frozen
 
 ## License
 
-MIT — see LICENSE. Single-author portfolio project; issues welcome.
+MIT, see [LICENSE](LICENSE). Single-author portfolio project; issues welcome.
