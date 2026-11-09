@@ -103,6 +103,82 @@ failure before that line would reach the deploy's handler, which reads the deplo
 finished and says nothing. Held by `tests/unit/test_deploy_ledger.py` under the fakes,
 the two scripts run in the payload's order among them.
 
+## Operating the host (the demo milestone's close, 2026-11-09)
+
+**The host stays up.** Through the build months the instance was stopped between working
+days, which took its line off the bill and kept the Elastic IP, the data volume and the
+DNS record. That habit ended on 2026-10-24, when the hostname began serving the
+application: the demo is public, the nightly backup and the monthly restore check are
+timers on the host, and the platform's monitor reads `/ready` through the hostname, so a
+stop is an outage the monitor reports. A stop that is wanted anyway (a resize, a
+replacement) follows the platform's `runbooks/replace-the-app-host.md`.
+
+**A deploy, from the push to a verified release.** A push to `main` runs CI's `check`;
+`image` waits on `check` alone, builds and pushes the image under the commit's sha and
+records its manifest digest; `deploy` then waits at "Review pending" in the `production`
+environment until it is approved in Actions. `sweeps` and `crash-matrix` run beside them
+and gate nothing, so an approval given before the matrix ends is provisional. No paths filter exists, so a
+push that changes documents alone builds an image and queues a review like any other.
+With several reviews pending, the newest is approved and the older ones rejected. The
+approval sends one SSM command, `deploy.sh` and then the boundary probe, and the job
+polls it for six minutes. A red job is read against the host's own record before it is
+called a failed deploy: the last block of `DEPLOY_LEDGER` beside the marker, read as the
+passage above describes. A deploy drains the worker, so a visitor's attempt in flight
+ends its segment there and the new worker's first pass closes it; the ledger page shows
+an open reservation while an attempt is open, for a deploy that can wait. A rerun is the
+same run's deploy job re-run from Actions, the same sha and digest. A rollback is an
+older commit's run with its deploy job re-run and approved; the script's side of that is
+held by `tests/unit/test_instance_deploy.py` against a real earlier compose file, and no
+rollback has been made on production.
+
+**Reading and stopping the stack by hand**, in a Session Manager session as root.
+`compose.yaml` requires `POSTGRES_PASSWORD` and `PGDATA_HOST` with `:?`, and Compose
+interpolates the file before any command, so `ps`, `logs`, `stop` and `down` refuse
+without them as `up` does, the error naming the variable (read on Docker Compose v5.3.1
+at a workstation, with `ps` and with dry runs of `down` and `stop`). The image tag defaults to `latest`, which
+no deploy puts on the host, so `APP_TAG` is the deployed sha. The preamble is the
+lifecycle script's:
+
+```
+cd /srv/app
+export APP_TAG=$(cat DEPLOYED) PGDATA_HOST=/srv/pgdata
+export POSTGRES_PASSWORD=$(aws ssm get-parameter --region eu-central-1 --with-decryption --name /leave-agent/postgres-password --query Parameter.Value --output text)
+export LEAVE_IMPACT_WORLD_BUCKET=leave-impact-world-445743457479 LEAVE_IMPACT_AWS_REGION=eu-central-1
+```
+
+Under it `docker compose ps`, `logs` and the `run --rm app` commands of the sections
+below work as written. `docker compose stop worker app` stops the two services, and
+neither returns under `unless-stopped`, through a reboot included; `down` removes the
+containers and leaves the data directory at `/srv/pgdata`. The way back from either is
+the deploy job re-run for the deployed sha, which runs the bootstraps and the identity
+and readiness checks and starts the worker with its credentials. A hand `up` of the
+worker under the preamble above would start it with every vendor value empty, since the
+preamble reads none of them.
+
+**The proxy's configuration.** The Caddyfile is laid down by the platform's cloud-init
+and is not edited on the host. A change to a stanza (the flip of 2026-10-24, from the
+echo service to `app:8000`, was one) is an instance replacement by the
+platform's runbook and then the deploy job re-run for the deployed sha, since the new
+instance mounts the data volume and holds no containers. The forwarded-headers trust
+(`FORWARDED_ALLOW_IPS` in `compose.yaml`) is the proxy network's subnet from the
+platform's contract table and moves with it.
+
+**The platform's half.** In the platform repository: `projects/leave-impact/README.md`
+(the contract table, the backup and restore-check units and their scripts),
+`runbooks/replace-the-app-host.md` (a replacement of this instance),
+`runbooks/box-rebuild.md` (the box the Frappe sites run on) and `SECRETS.md` (the rule
+for whose each secret is). By that rule and the contract table, the Access service
+token's rotation is the platform owner's and the vendor credentials are the
+application's to put and rotate; the deploy reads every value by parameter name.
+
+**Spend made outside a run.** `import-spend`, whose form is in the recovery section
+below, is also the command for model spend the log never saw: a probe or a spike that
+called a model outside the lifecycle. One import per ledger, the amount from the bill,
+the authority naming who established it and from what. The `--request` identity is held
+across retries: the same command again answers with the entry it wrote, and other
+content under a recorded identity is refused as a conflict. An import adds to the
+ledger's committed total, so it draws on that ledger's wall as a run's charge does.
+
 ## The run lifecycle
 
 `lifecycle.sh` is one step of a run on the host: `launch` (the launcher's plan, the
@@ -195,8 +271,10 @@ the live database as a check after a recovery (the compose default `DATABASE_URL
 
 **The recovery point.** A nightly dump loses up to a day: admissions, settlements and
 publications made after the last dump are gone from the database and not from the bill of the
-vendor that served them. After a real recovery the live flag stays off (off by default; a
-recovery flips nothing) until the lost window is reconciled from billing on the host:
+vendor that served them. After a real recovery live runs are off until the lost window is
+reconciled from billing on the host. The flag is the committed demo configuration's
+`live_runs`, on since the final smoke of 2026-11-09, so a recovery lands a commit that
+sets it false before the restore's deploy and a second that returns it after the import:
 
 ```
 docker compose run --rm app python -m leaveimpact.agent import-spend --request <identity, held across retries> --ledger <ledger id> --amount <pico-dollars> --authority "<who, from what bill>" --registration-commit <sha>
@@ -210,10 +288,10 @@ first so no attempt is mid-flight over the restore); choose the object (the key 
 the version id from the bucket's listing, read with the administrator identity from a
 workstation, since the instance role holds no list); restore it into the live database with
 the platform's restore script's own restore line (it verifies the digest against the object's
-metadata first); re-run the deploy for the deployed sha from Actions, so both bootstraps, the
-identity check and the readiness check run as at every landing; then run `verify-restore`
-against the live database with the object's capture on stdin from a file, and keep the live
-flag off until the import above is done.
+metadata first); deploy the commit that sets `live_runs` false from Actions, so both
+bootstraps, the identity check and the readiness check run as at every landing; then run
+`verify-restore` against the live database with the object's capture on stdin from a file,
+and return the flag by commit once the import above is done.
 
 ## The worker service (the worker service's step, 2026-10-28)
 
@@ -229,9 +307,11 @@ deploy is created with them, under the tree's file or a rollback's older one tha
 names them on `app` (held by `tests/unit/test_instance_deploy.py` against the real
 pre-worker file); the lifecycle's `work` step runs its one-off container as this service
 for the same reason; `app` names none, held by `tests/unit/test_compose_edge.py`.
-Its memory limit is the baseline's reservation (512 MiB) until a public attempt runs under
-it, which is the live path's first acceptance; the three limits sum to the budget line
-`tests/unit/test_memory_baseline.py` holds.
+Its memory limit was the baseline's reservation (512 MiB) until a public attempt ran under
+it; the live path's first acceptance set it to 448 MiB by the rule and the final smoke
+kept it there on a 292.4 MiB peak (`probes/FINDINGS.md`, `live-acceptance` and
+`final-smoke`; `tests/unit/test_live_acceptance_probe.py` holds the deployed limit to the
+capture's, and `tests/unit/test_memory_baseline.py` the three limits' fit).
 
 **Reading it.** `docker compose ps` shows the three containers and the worker's health;
 `docker compose logs worker` is one line per tick action, claim and ending (ids, kinds and
