@@ -1,0 +1,1 @@
+loop pid after stop: ended samples 2520 bytes 2231286 == after 2026-11-09T14:05:10Z leaveimpact-worker-1 Up 2 hours (healthy) leaveimpact-app-1 Up 2 hours (healthy) leaveimpact-postgres-1 Up 2 weeks (healthy) proxy-caddy-1 Up 2 weeks == loop log (last lines) == done 14:05:10 

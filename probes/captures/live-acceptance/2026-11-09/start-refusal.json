@@ -1,0 +1,63 @@
+{
+ "probe": "subscribers",
+ "mode": "started",
+ "label": "preflip",
+ "started_utc": "2026-11-09T12:01:06.195431+00:00",
+ "started_epoch": 1794225666.195,
+ "base": "https://leave-agent.ardabasarici.dev",
+ "attempt": null,
+ "scenario": "scenario_028",
+ "bound": 8,
+ "clients": 8,
+ "hold_seconds": 60.0,
+ "awaiting_hold_seconds": 40.0,
+ "deadline_seconds": 1500.0,
+ "timeline": null,
+ "page_before": [],
+ "page_during": [],
+ "beyond_bound": null,
+ "released": null,
+ "replacement": null,
+ "decision": null,
+ "clock": {
+  "status": 200,
+  "date": "Mon, 09 Nov 2026 12:01:06 GMT",
+  "round_trip_seconds": 0.6229,
+  "resolution_seconds": 1.0,
+  "offset_seconds": -0.547
+ },
+ "index": {
+  "path": "/",
+  "status": 200,
+  "seconds": 0.3992,
+  "bytes": 4961,
+  "headers": {
+   "content-type": "text/html; charset=utf-8",
+   "transfer-encoding": "chunked",
+   "server": "cloudflare",
+   "via": "1.1 Caddy",
+   "cf-cache-status": "DYNAMIC",
+   "date": "Mon, 09 Nov 2026 12:01:07 GMT"
+  },
+  "form_present": false
+ },
+ "start": {
+  "posted": true,
+  "sent_at": 1.0644,
+  "status": 403,
+  "seconds": 0.3791,
+  "headers": {
+   "content-type": "text/html; charset=utf-8",
+   "transfer-encoding": "chunked",
+   "server": "cloudflare",
+   "via": "1.1 Caddy",
+   "cf-cache-status": "DYNAMIC",
+   "date": "Mon, 09 Nov 2026 12:01:07 GMT"
+  },
+  "location_host": null,
+  "location_path": null,
+  "live_runs_off_text": true,
+  "cookies_set": 0,
+  "error": null
+ }
+}

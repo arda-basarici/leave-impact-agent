@@ -1,0 +1,59 @@
+read 2026-11-09T12:46:13Z through the hostname with a browser Accept, status 200: the timeline of run B after its close, started and approved by the probe
+This demo serves a development world, one the investigator was built against. The results page's numbers come from a withheld world, generated after the procedure was frozen.
+All replays · The report · Audit trail
+Timeline: live-cf3f5b1076fd88ee4baba6703a0b1c2b
+Scenario scenario_028
+Ending completed
+Published 2026-11-09
+One line per event the log recorded, in the order it accepted them; each says only what its event establishes, and an instant is when the log accepted the event. Nothing here is model prose.
+This run has ended; the timeline is its record, shown whole.
+position 1, recorded in the log at 2026-11-09T12:44:27.647292+00:00 run admitted: scenario scenario_028 of world 7b806ed6f405…, attempt 1, system agent (tool_loop_then_finalization), corpus level base; its inputs and the registered rules are frozen
+position 2, recorded in the log at 2026-11-09T12:44:32.580265+00:00 a worker claimed the attempt (segment 1) on harness commit 266422f7b673…
+position 3, recorded in the log at 2026-11-09T12:44:32.889602+00:00 the frozen prefetch's read 1: leave on frappe, one record (leave leave_005)
+position 4, recorded in the log at 2026-11-09T12:44:34.799424+00:00 the frozen prefetch's read 2: employees on frappe, 28 records
+position 5, recorded in the log at 2026-11-09T12:44:34.895934+00:00 the frozen prefetch's read 3: leaves_within on frappe, 1 record
+position 6, recorded in the log at 2026-11-09T12:44:35.108247+00:00 the frozen prefetch's read 4: components on jira, 5 records
+position 7, recorded in the log at 2026-11-09T12:44:35.578327+00:00 the frozen prefetch's read 5: work_items on jira, 33 records
+position 8, recorded in the log at 2026-11-09T12:44:41.335339+00:00 the frozen prefetch's read 6: events_within on calendar, 0 records
+position 9, recorded in the log at 2026-11-09T12:44:41.364431+00:00 a counting request was started for role investigator on anthropic.claude-haiku-4-5-20251001-v1:0 (request 0cdc9832e66f…, number 1 under that key)
+position 10, recorded in the log at 2026-11-09T12:44:41.475603+00:00 the counting request answered: 9,370 input tokens; read as counted
+position 11, recorded in the log at 2026-11-09T12:44:41.479423+00:00 model call 1 authorized (dispatch 1, role investigator): 6 reads shown, input bounded at 9,370 tokens, output at most 8,192 tokens, worst case 17,562 tokens and $0.0579
+position 12, recorded in the log at 2026-11-09T12:44:43.236362+00:00 model call 1, dispatch 1 answered: a complete response (stop reason tool_use, 1,739 ms); 5 tool calls, 0 statements made, 0 admitted by the gates, 0 refused; read as the model's behaviour under rule registered-stop-reason
+position 13, recorded in the log at 2026-11-09T12:44:43.258070+00:00 the read model call 1 asked for in tool call tooluse_9u7IvDs499tlgndItwK8YH: search on corpus, 0 records
+position 14, recorded in the log at 2026-11-09T12:44:43.273154+00:00 the read model call 1 asked for in tool call tooluse_CPGIKOReULb1dzVzQ5iGwa: search on corpus, 2 records
+position 15, recorded in the log at 2026-11-09T12:44:43.287201+00:00 the read model call 1 asked for in tool call tooluse_T58cSgE1hbXvk5dYSmlWEr: search on corpus, 1 record
+position 16, recorded in the log at 2026-11-09T12:44:43.302510+00:00 the read model call 1 asked for in tool call tooluse_0tPdsh64uyx9Myij5JIFvu: search on corpus, 2 records
+position 17, recorded in the log at 2026-11-09T12:44:43.317390+00:00 the read model call 1 asked for in tool call tooluse_MCKJpsnfMglOcOkstsjdWw: search on corpus, 1 record
+position 18, recorded in the log at 2026-11-09T12:44:43.344868+00:00 a counting request was started for role investigator on anthropic.claude-haiku-4-5-20251001-v1:0 (request 0c71d32c19ee…, number 1 under that key)
+position 19, recorded in the log at 2026-11-09T12:44:43.402506+00:00 the counting request answered: 10,625 input tokens; read as counted
+position 20, recorded in the log at 2026-11-09T12:44:43.406601+00:00 model call 2 authorized (dispatch 1, role investigator): 11 reads shown, input bounded at 10,625 tokens, output at most 8,192 tokens, worst case 18,817 tokens and $0.0597
+position 21, recorded in the log at 2026-11-09T12:44:44.641361+00:00 model call 2, dispatch 1 answered: a complete response (stop reason tool_use, 1,218 ms); 5 tool calls, 0 statements made, 0 admitted by the gates, 0 refused; read as the model's behaviour under rule registered-stop-reason
+position 22, recorded in the log at 2026-11-09T12:44:44.660175+00:00 the read model call 2 asked for in tool call tooluse_ADlscAzZGHQfQZlgSjmXOs: document on corpus, one record (document doc_006)
+position 23, recorded in the log at 2026-11-09T12:44:44.674399+00:00 the read model call 2 asked for in tool call tooluse_S254nvhQyrH2l9YR8DiZTO: document on corpus, one record (document doc_007)
+position 24, recorded in the log at 2026-11-09T12:44:44.689272+00:00 the read model call 2 asked for in tool call tooluse_vhz3B1PUpUxqQeMb4fDeUd: document on corpus, one record (document doc_005)
+position 25, recorded in the log at 2026-11-09T12:44:44.704635+00:00 the read model call 2 asked for in tool call tooluse_sZ1LYB5SWkTrKehlx9g4NC: document on corpus, one record (document doc_004)
+position 26, recorded in the log at 2026-11-09T12:44:44.722011+00:00 the read model call 2 asked for in tool call tooluse_JRsJfhcg7TBGet4JP5Bvmw: document on corpus, one record (document doc_024)
+position 27, recorded in the log at 2026-11-09T12:44:44.758891+00:00 a counting request was started for role investigator on anthropic.claude-haiku-4-5-20251001-v1:0 (request 26a0ed383e87…, number 1 under that key)
+position 28, recorded in the log at 2026-11-09T12:44:44.898744+00:00 the counting request answered: 11,647 input tokens; read as counted
+position 29, recorded in the log at 2026-11-09T12:44:44.905975+00:00 model call 3 authorized (dispatch 1, role investigator): 16 reads shown, input bounded at 11,647 tokens, output at most 8,192 tokens, worst case 19,839 tokens and $0.0611
+position 30, recorded in the log at 2026-11-09T12:44:46.096996+00:00 model call 3, dispatch 1 answered: a complete response (stop reason tool_use, 1,178 ms); 4 tool calls, 0 statements made, 0 admitted by the gates, 0 refused; read as the model's behaviour under rule registered-stop-reason
+position 31, recorded in the log at 2026-11-09T12:44:46.589011+00:00 the read model call 3 asked for in tool call tooluse_3D9jwcr5myYJN5KocL6xZc: work_item on jira, one record (work_item ticket_009)
+position 32, recorded in the log at 2026-11-09T12:44:47.028749+00:00 the read model call 3 asked for in tool call tooluse_Q9gGBlM7t5Z35ado5z2A12: work_item on jira, one record (work_item ticket_008)
+position 33, recorded in the log at 2026-11-09T12:44:47.549041+00:00 the read model call 3 asked for in tool call tooluse_DtYEw2rs2H6NESVXNR6jtQ: work_item on jira, one record (work_item ticket_007)
+position 34, recorded in the log at 2026-11-09T12:44:48.016522+00:00 the read model call 3 asked for in tool call tooluse_rCO95RnsWjxWh29i9GXOxY: work_item on jira, one record (work_item ticket_030)
+position 35, recorded in the log at 2026-11-09T12:44:48.060394+00:00 a counting request was started for role investigator on anthropic.claude-haiku-4-5-20251001-v1:0 (request 19c8bb78223a…, number 1 under that key)
+position 36, recorded in the log at 2026-11-09T12:44:48.132815+00:00 the counting request answered: 12,523 input tokens; read as counted
+position 37, recorded in the log at 2026-11-09T12:44:48.136642+00:00 model call 4 authorized (dispatch 1, role investigator): 20 reads shown, input bounded at 12,523 tokens, output at most 8,192 tokens, worst case 20,715 tokens and $0.0623
+position 38, recorded in the log at 2026-11-09T12:44:51.066837+00:00 model call 4, dispatch 1 answered: a complete response (stop reason tool_use, 2,837 ms); 1 tool call, 5 statements made, 5 admitted by the gates, 0 refused; read as the model's behaviour under rule registered-stop-reason
+position 39, recorded in the log at 2026-11-09T12:44:51.103433+00:00 the run stopped investigating and began to finalize
+position 40, recorded in the log at 2026-11-09T12:44:51.107049+00:00 a counting request was started for role investigator on anthropic.claude-haiku-4-5-20251001-v1:0 (request 723ed06e6af3…, number 1 under that key)
+position 41, recorded in the log at 2026-11-09T12:44:51.180940+00:00 the counting request answered: 11,940 input tokens; read as counted
+position 42, recorded in the log at 2026-11-09T12:44:51.185710+00:00 model call 5 authorized (dispatch 1, role investigator): 20 reads shown, input bounded at 11,940 tokens, output at most 8,192 tokens, worst case 20,132 tokens and $0.0615
+position 43, recorded in the log at 2026-11-09T12:44:53.844670+00:00 model call 5, dispatch 1 answered: a complete response (stop reason tool_use, 2,645 ms); 1 tool call, 9 statements made, 8 admitted by the gates, 1 refused; read as the model's behaviour under rule registered-stop-reason
+position 44, recorded in the log at 2026-11-09T12:44:53.932570+00:00 the review payload is frozen with 32 claims; the run awaits the decision
+position 45, recorded in the log at 2026-11-09T12:44:53.943994+00:00 the worker stopped cleanly (segment 1); the run awaits the decision on its review payload
+position 46, recorded in the log at 2026-11-09T12:45:42.886441+00:00 a human approved the review payload
+position 47, recorded in the log at 2026-11-09T12:45:48.014400+00:00 a worker claimed the attempt to resume it after the approval (segment 2) on harness commit 266422f7b673…
+position 48, recorded in the log at 2026-11-09T12:45:48.077813+00:00 the worker resumed after the approval
+position 49, recorded in the log at 2026-11-09T12:45:48.088066+00:00 the run completed: the system produced its final claims; the reservation was reconciled, $0.0718 charged
+Leave Impact Agent · revision 266422f7b6732bec47771e19f17f6095480dad1e

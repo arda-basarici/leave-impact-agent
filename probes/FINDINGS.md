@@ -5525,3 +5525,112 @@ its own key pair and the token are set together in its workflow's environment, s
 token is the policy's subject and the key pair is Frappe's; the workflow carries the same
 two env lines and the same set-check as the validator's, which ran. The token expires
 2027-11-03 and is renewed before.
+
+## final-smoke — live runs on to stay under Access: three public attempts settled, the worker's Frappe reads answering through the edge, and the active phase's CPU under eight subscribers measured at last, 0.131 s a second above idle over two pooled runs against a budget of 0.2; one stream criterion not met as it was written (2026-11-09)
+
+The demo milestone's step 17, its last build item; the plan and its criteria are in
+`probes/README.md` ("The final smoke under the landed connectivity"), the capture under
+`captures/live-acceptance/2026-11-09/`, and every figure below is printed by
+`live-acceptance/reduce.py` over that capture into `live-acceptance/reading-final-smoke.json`
+and held by `tests/unit/test_live_acceptance_probe.py`, except the ledger and timeline
+figures, which are the page reads filed beside it, and the sums marked as done by hand.
+
+**Before the flip**, on the deployed `e7172ce` with live runs off. The worker container
+held both Access names nonempty, and from inside it the Frappe login page answered 200
+with the pair and 302 to the Zero Trust organization without it
+(`preflip-check.out.txt`, 12:00 UTC). The probe's start through the hostname found no
+form on the index, posted one start with a key of its own and was answered 403 by the
+application with its own wording in 0.38 s, the response coming through the proxy and the
+edge; the ledger page read afterwards was unchanged at revision 7 with no refusal counted
+(`start-refusal.json`). Both as expected, so the flag went on by commit (`266422f`,
+deployed 12:34 UTC).
+
+**The runs.** The sampler ran from 12:35:07 to 14:05:06 UTC, 2,520 samples at a period of
+2.14 s. No request was made to the site from 12:35:30 to 12:42:25; the entered idle
+window is 12:36:00 to 12:42:15.
+
+| run | scenario | started and decided by | admitted (UTC) | active phase | the wait | ending | charge |
+|---|---|---|---|---|---|---|---|
+| A | `scenario_028` | the probe, from the workstation | 12:42:26 | 26.80 s | 50.25 s | declined | $0.0718 |
+| B | `scenario_028` | the probe, from the workstation | 12:44:27 | 26.29 s | 48.95 s | completed, the resumed segment 5.20 s | $0.0718 |
+| C | `scenario_009` | a person, from a phone on mobile data | 14:02:42 | 32.53 s | 79.65 s | completed, the resumed segment 5.20 s | $0.0680 |
+
+Every run reserved $2.1674 and no run met an infrastructure failure. The six
+frozen-prefetch lines of runs A and B are identical to the replay's of the scenario
+(a diff of each timeline's lines against the replay's narration stream), the three Frappe
+reads at one record, 28 records and 1 record: the worker's own path through Access, from
+the deploy script's environment through Compose to the work child, reads what the replay
+read on 2026-10-22. Run C's Frappe reads answered the same way on its own scenario.
+
+**The active phase under eight subscribers.** Each started run had its eight streams at
+their first frames 1.12 s after the start was sent (the start's own round trip 0.41 s),
+and held them through the phase with no other request from the probe.
+
+| | held coverage | the app's CPU, s a second | above the idle 0.041 |
+|---|---|---|---|
+| run A, active | 23.7 s | 0.1823 | 0.1413 |
+| run B, active | 23.7 s | 0.1621 | 0.1211 |
+| **the pool** | **47.4 s** | **0.1722** | **0.1312** |
+| run A, the wait | 40.9 s | 0.1014 | 0.0604 |
+| run B, the wait | 40.8 s | 0.1103 | 0.0693 |
+
+The pooled figure is inside the budget of 0.2 and under the forecast of 0.14; run A alone
+is over the forecast by 0.001 and run B under it. The idle rate is over 372.4 s of the
+entered window. Both runs cleared the 20 s floor on their own as well, which the plan had
+forecast they could not: it took the phase at the acceptance's 21 to 23 s, and the phase
+ran 26.3 and 26.8 s here on the same scenario that ran 21.96 s then, the difference not
+attributed. The waits read as the acceptance's did (0.062 and 0.078 then).
+
+**The streams.** In both started runs every held stream reached its closing frame, the
+ninth connection was answered 503, the released slot admitted a replacement, no pair of
+frames bunched, and the heartbeat gaps were 15.16 to 15.86 s over 23 gaps a run. The
+intervals between frames' arrivals kept the recorded ones at a p95 of 0.55 and 0.60 s,
+the measure the acceptance's two-second bound was read on. **The criterion written for
+this smoke named a different measure and is not met as written:** the delivery of the
+active phase's frames against their recorded instants, p95 under 2 s, reads 2.0001 s
+(run A) and 2.094 s (run B) over 344 frames each, medians 1.63 and 1.62 s. That measure
+carries the offset of the two clocks, bounded here to 1.52 and 1.29 s by the readiness
+route's Date header, so it cannot resolve a two-second line, and the plan took the bound
+from the acceptance without reading back which measure it had held on. A reading, not a
+measurement: the Date header is cut to the second, so an offset read from it runs low by
+up to a second and the delivery high by as much; the four offsets on record (−0.009 and
+−0.429 at the acceptance, −0.897 and −0.956 here) spread over that second, and if both
+clocks are true the p95 is nearer 1.1 s. The recorded figures are the raw ones. The
+decision's post, timed at the client through the edge under the held streams, took 0.86 s
+(the decline) and 0.73 s (the approval); the acceptance read 489 ms at the origin. The
+page latency under an active hold was not measured, by the plan.
+
+**The ledger**, read after each settlement (`ledger-before.txt`, `ledger-after-runA`,
+`-runB`, `-runC`): revision 7, 9, 11, 13; committed $0.1971, $0.2690, $0.3408, $0.4088
+over 3, 4, 5, 6 settled runs; today's runs 0, 1, 2, 3 of 5; no open reservation and no
+refusal at any read. The first step is $0.0719 against a charge shown as $0.0718, the
+page rounding each sum to four places. The three runs cost $0.2117 by hand (0.4088 less
+0.1971) against a forecast of $0.197, the mean charge now $0.0681 over six.
+
+**The worker's limit and the host.** No container was absent from a sample and no kill or
+restart counter moved. The worker's largest current was 292.4 MiB (306,569,216 bytes, in
+run C's active phase), so the rule keeps 448m, by 6.3 MiB of its step; the forecast of
+512m, made from the fold memo's rise in idle memory, was wrong. The application peaked at
+162.9 MiB and the database at 105.9, their limits unchanged at 384m and 192m; the three
+limits sum to 1,024 MiB against a budget of 1,257.6 MiB from this capture's own baseline
+(583.2 MiB in use outside the three services at its largest), 233.6 MiB spare. The
+verdict over absences, counters and the fit is accepted.
+
+| | criterion | observed |
+|---|---|---|
+| (a) | the endings, each timeline and each approved run's report read | declined, completed, completed; five page reads filed |
+| (b) | no infrastructure failure; the started runs' prefetch lines equal to the replay's | none; identical, six lines each |
+| (c) | the ledger after each settlement, each figure a diff of the one before | four reads, three settlements, the identity holding at each |
+| (d) | the closing frames, the heartbeats, no bunching, the bound, the replacement; the active phase's delivery p95 under 2 s | all met but the last: 2.0001 and 2.094 s, under a clock bound of 1.5 and 1.3 s |
+| (e) | the pooled held rate above idle at most 0.2 | 0.1312 over 47.4 s, each run 23.7 s |
+| (f) | no absence, no counter moved, the derived limits fitting | accepted; 448m kept, 233.6 MiB spare |
+| (g) | the decision's post under the hold, recorded | 0.86 and 0.73 s at the client |
+| (h) | both checks before the flip as expected | 200 and 302; 403 with the application's wording |
+
+**PASS** on (a), (b), (c), (e), (f), (g) and (h); (d) met on five of its six parts and
+not met as written on the sixth. Live runs stay on: the conditions fixed before the runs
+were that the runs settle, the streams pass, the decisions work and the resource verdict
+holds, and the part of (d) that missed is a criterion on a measure the clock bound cannot
+resolve, with the interval measure, the heartbeats and every closing frame holding. Owed
+before the delivery is a criterion again: a tighter clock bound in the probe, several
+reads of the Date header across a second's turn.

@@ -522,3 +522,43 @@ its next generation, by the platform's wording. FINDINGS `access-acceptance`.
 | **access-acceptance, validator** — `validate-world.yml` dispatched on `e968612` on the measurement world against the base-URL variable's site | both token secrets present at the set-check; the boundary probe's three reads allowed and four writes refused; `approval=approved` | `captures/access-service-token/validator-run-01.txt` |
 | **access-acceptance, instance** — the read-principals instance probe sent over SSM on the deployed `e968612`, the host script reading the Access pair beside the five | the seven parameters set, `access_token: given`, P3 green at 28 employees with the by-id read, P4 and P5 at their earlier counts | `captures/investigator-principals/instance-run-03.txt` |
 | **access-acceptance, generator** — the next `generate-world.yml` dispatch | a world sealed through the workflow's env lines and set-check | none yet; recorded at the next generation |
+
+## The final smoke under the landed connectivity (criteria fixed 2026-11-09 at the design pass and its external read, before the flag went on)
+
+The demo milestone's step 17, its last build item: live runs on to stay, with Access in
+front of the Frappe hostnames, and the one measurement the acceptance left open, the
+application's CPU under eight subscribers in an attempt's active phase. The acceptance
+could not take it because a probe attaches only once a browser has shown the public id,
+and the phase was over by then; here the probe starts the attempt itself
+(`subscribers.py --start`), reading the index's form as a browser does, and decides it
+with the cookie the start set. One started run still cannot reach the reducer's floor of
+20 s of held sample pairs: the phase ran 21 to 23 s at the acceptance, the streams need
+about a second to be held, and whole sample pairs cover the rest less up to one period.
+So two started runs are pooled, the sampler at a 2 s cadence, and the contract was fixed
+before the capture: the pool holds only pairs inside one run's active phase and one held
+interval, sums usage and wall time, never joins two runs; each run brings at least 10 s
+and the pool 20 s; under either floor the figure is unmeasured and a further run is a new
+decision. The verdict is the duration-weighted rate over those two phases, no ceiling on
+one run. The idle baseline is an entered window of the same capture at the same cadence
+(`idle-window.json`), since the sampler's own work on the host is then on both sides of
+the subtraction. A third run from a phone on mobile data is read by a person, with its
+boundaries entered from its timeline so it stays out of the baseline. The page latency
+under an active hold is not measured: timed page reads inside the window would add the
+application's own CPU to the figure.
+
+Two checks cost no run and came first, with the flag still off. `send.ps1 -action check`
+runs `access_check.py` inside the worker container: whether each of the two Access names
+is nonempty there, and what the edge answers the Frappe login page with that pair and
+without it, since Compose gives both names an empty default and a nonempty value can be
+stale. And the probe's start posted through the application's edge, where the index shows
+no form: the application's own refusal is the answer expected.
+
+Fixed with the criteria: a functional failure in the first run stops the smoke and turns
+the flag off by commit; an isolated miss of the CPU budget leaves the flag on only when
+the runs settle, the streams pass, the decisions work and the resource verdict holds.
+FINDINGS `final-smoke`.
+
+| probe | pass criterion | capture |
+|---|---|---|
+| **final-smoke, before the flip** — the worker's Access pair asked at the edge from inside its container, and one scripted start through the hostname, both on the deployed `e7172ce` with live runs off | both names nonempty, the login page 200 with the pair and the edge's redirect to the organization without it; the start answered 403 with the application's wording, nothing written | `captures/live-acceptance/2026-11-09/preflip-check.out.txt`, `start-refusal.json` |
+| **final-smoke, the runs** — two attempts on `scenario_028` started by the probe from the workstation, one declined and one approved by it under eight held streams, and one started and approved from a phone on mobile data, the sampler at 2 s across all three on the deployed `266422f` | (a) the first closes declined and the other two completed, each timeline and each approved run's report read through the hostname; (b) no infrastructure failure, and each started run's six frozen-prefetch lines equal to the replay's of the scenario, three of them Frappe reads; (c) the ledger page after each settlement, every figure a diff of the one before; (d) every held stream to its closing frame, heartbeat gaps at most 16 s, no bunched pair, the bound's 503, the replacement admitted, and the delivery of the active phase's frames at a p95 under 2 s; (e) the pooled held rate above idle at most 0.2, the 0.14 forecast noted, under the pooling contract above; (f) no container absent from a sample, no kill or restart counter moved, the three limits the rule derives fitting the capture's own budget; (g) the decision's post under the hold timed at the client, recorded with no bound | `captures/live-acceptance/2026-11-09/`: `subscribers-runA.json`, `-runB`, `phases-runC.json`, `idle-window.json`, `runs-samples.jsonl` with its start and stop accounts, the three timelines, the two reports, the ledger before and after each run; `live-acceptance/reading-final-smoke.json` |

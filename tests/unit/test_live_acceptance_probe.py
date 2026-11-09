@@ -1167,3 +1167,128 @@ def test_the_fold_memo_meets_the_criterion_whole_and_minute_by_minute() -> None:
     assert len(minutes) == 16
     assert min(minutes) == 0.0187 and max(minutes) == 0.0207
     assert all(rate <= FOLD_MEMO_CRITERION for rate in minutes)
+
+
+# --- the final smoke's capture (M3 step 17) -----------------------------------------------
+
+
+SMOKE_CAPTURE = ROOT / "probes" / "captures" / "live-acceptance" / "2026-11-09"
+
+
+def _smoke_reading() -> dict[str, Any]:
+    text = (PROBE / "reading-final-smoke.json").read_text(encoding="utf-8")
+    return cast(dict[str, Any], json.loads(text))
+
+
+def test_the_final_smoke_reading_regenerates_from_its_committed_capture() -> None:
+    """The third capture of the sampler: two runs the probe started and decided, one from
+    a phone with its boundaries entered, the idle window entered, reduced to its own
+    reading beside the acceptance's."""
+    reduce = _module("reduce")
+    reading = _smoke_reading()
+    assert reading["capture"] == SMOKE_CAPTURE.name
+    assert sorted(reading["sources"]) == [
+        "idle-window.json",
+        "phases-runC.json",
+        "runs-samples.jsonl",
+        "subscribers-runA.json",
+        "subscribers-runB.json",
+    ]
+    for name, value in reading["sources"].items():
+        assert cast(Any, reduce).digest(SMOKE_CAPTURE / name) == value, name
+    assert cast(Any, reduce).reduce_capture(SMOKE_CAPTURE) == reading
+
+
+def test_the_final_smoke_pools_the_active_phases_inside_the_budget_and_the_forecast() -> None:
+    """The measurement the acceptance could not take: eight streams held from the first
+    second of two started runs. The criterion was fixed before the capture (the pooled
+    rate above idle at most 0.2, each run bringing 10 s and the pool 20 s); the pool reads
+    0.1312 over 47.4 s against the entered idle window, under the 0.14 forecast too."""
+    reading = _smoke_reading()
+    assert reading["idle_window"]["seconds"] == 375.0
+    assert reading["pooled_active"] == {
+        "runs": {
+            "runA": {"held_seconds": 23.7, "app_rate_held": 0.1823, "reaches_run_floor": True},
+            "runB": {"held_seconds": 23.7, "app_rate_held": 0.1621, "reaches_run_floor": True},
+        },
+        "run_floor_seconds": 10.0,
+        "coverage_floor_seconds": 20.0,
+        "held_seconds": 47.4,
+        "app_rate_held": 0.1722,
+        "idle_rate": 0.041,
+        "idle_seconds": 372.4,
+        "sufficient": True,
+        "above_idle": 0.1312,
+        "within_budget": True,
+        "within_forecast": True,
+    }
+    phases = reading["samples"]["runs"]["phases"]
+    assert set(phases) == {
+        "idle",
+        "between",
+        "runA:active",
+        "runA:awaiting",
+        "runB:active",
+        "runB:awaiting",
+        "runB:resumed",
+        "runC:active",
+        "runC:awaiting",
+        "runC:resumed",
+    }, "run C sits in its own phases, never in the baseline"
+    spans = {w["name"]: round(w["to"] - w["from"], 2) for w in reading["windows"]}
+    assert spans["runA:active"] == 26.8 and spans["runB:active"] == 26.29
+    assert spans["runC:active"] == 32.53
+
+
+def test_the_final_smoke_streams_and_decisions_as_the_probe_recorded_them() -> None:
+    """What each started run recorded at the client, and what its streams showed. The
+    intervals between frames kept the recorded ones (no clock offset in that measure) and
+    nothing bunched. The delivery against the recorded instant in the active phase reads
+    a p95 of 2.0001 and 2.094 s under a clock bound of 1.5 and 1.3 s: the criterion the
+    design pass wrote on that measure (p95 under 2 s) is not met as written, which the
+    record says and this test holds, so the figure cannot be restated later."""
+    subscribers = _smoke_reading()["subscribers"]
+    run_a, run_b = subscribers["runA"], subscribers["runB"]
+    assert run_a["started"] == {
+        "scenario": "scenario_028",
+        "start_status": 303,
+        "start_seconds": 0.4122,
+        "reach_seconds": 1.1151,
+        "decision": "decline",
+        "decision_posted": True,
+        "decision_status": 303,
+        "decision_seconds": 0.8601,
+    }
+    assert run_b["started"]["reach_seconds"] == 1.1152
+    assert run_b["started"]["decision"] == "approve"
+    assert run_b["started"]["decision_seconds"] == 0.73
+    for run in (run_a, run_b):
+        assert run["ended"] == {"closed": 8, "closed by the probe": 1, "refused": 1}
+        assert run["beyond_bound"]["status"] == 503 and run["replacement"]["status"] == 200
+        assert run["bunched_pairs"] == 0 and run["errors"] == []
+        assert run["heartbeat_gap_seconds"]["min"] > 15.0
+        assert run["heartbeat_gap_seconds"]["max"] < 16.0
+        assert run["timeline"]["content_security_policy"] is None
+    assert run_a["interval_lag_seconds"]["p95"] == 0.5541
+    assert run_b["interval_lag_seconds"]["p95"] == 0.6039
+    assert run_a["active_delivery_seconds"]["p95"] == 2.0001
+    assert run_b["active_delivery_seconds"]["p95"] == 2.094
+    assert run_a["delivery_bound_seconds"] == 1.521 and run_b["delivery_bound_seconds"] == 1.288
+    assert run_a["phases"]["closed"]["status"] == "declined"
+    assert run_b["phases"]["closed"]["status"] == "completed"
+
+
+def test_the_final_smoke_keeps_the_worker_limit_and_the_verdict_accepts_the_capture() -> None:
+    """Criterion (f): no absence, no kill or restart counted, the three derived limits
+    fitting the budget this capture's own baseline leaves. The worker's largest current,
+    292.4 MiB in run C's active phase, keeps 448m by 6.3 MiB of the rule's step."""
+    rule = _smoke_reading()["worker_rule"]
+    assert rule["worker_peak_current_bytes"] == 306_569_216
+    assert rule["worker_mem_limit"] == "448m"
+    assert rule["app_mem_limit"] == "384m" and rule["postgres_mem_limit"] == "192m"
+    assert rule["absences"] == [] and rule["counters_moved"] == []
+    assert rule["limits_sum_bytes"] == 1024 * 2**20
+    assert rule["budget_bytes"] == 1_318_666_240 and rule["spare_bytes"] == 244_924_416
+    assert rule["fits"] is True and rule["accepted"] is True
+    compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
+    assert "    mem_limit: 448m" in compose, "the limit the capture derives is the one deployed"

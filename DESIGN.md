@@ -4692,6 +4692,36 @@ dump's own snapshot under execution disabled, the recovery-point limitation reco
 is reconciled from billing). The model served is the registered Haiku 4.5, labelled as
 registered rather than chosen on a table, since the model arm was not run.
 
+As built at the final smoke (M3 step 17's last item, 2026-11-09; nine forks, five ruled
+at the open and two of those re-cut by the survey, then the external read's seven points;
+FINDINGS `final-smoke` holds every figure). Live runs went on by commit and stay on; the
+stop is a commit and a deploy, about twenty minutes, with the daily cap, the per-address
+limit, the wall and the one slot standing meanwhile. The acceptance had left the active
+phase's cost under eight subscribers unmeasured, a probe attaching only after a browser
+shows the public id; the probe now starts the attempt itself from the index's form and
+decides it with the start's cookie, the key never written. The survey found that one
+started run still could not reach the reducer's floor of 20 s of held pairs in a phase of
+21 to 23 s, so two started runs were pooled at a 2 s sampling cadence under a contract
+fixed before the capture: pairs inside one run's active phase and one held interval
+only, each run at least 10 s and the pool 20 s, an insufficient pool unmeasured, the
+verdict the duration-weighted rate and no ceiling on one run, against an entered idle
+window of the same capture. The external read reproduced a defect in the reducer first: a
+sample before a release and the next after the replacement had counted the gap between
+them as subscribed time, which the acceptance's capture happened not to contain. Before
+the flip two checks cost no run: the worker container's own Access pair asked at the edge
+(200 with it, the redirect without), and a scripted start refused 403 by the application
+through the edge. Three attempts then settled on production, two started and decided by
+the probe and one by a person from a phone; the worker's Frappe reads answered through
+Access with the prefetch lines of the replay; the pooled rate read 0.131 s a second above
+idle over 47.4 s against the 0.2 budget and the 0.14 forecast; the worker's limit stayed
+at 448m on a peak of 292.4 MiB, the forecast of 512m wrong, the three limits fitting
+with 233.6 MiB spare. One criterion was not met as written, the delivery of the active
+phase's frames at a p95 under 2 s (2.00 and 2.09 s): it named a measure that carries the
+clock offset, bounded to 1.3 to 1.5 s, where the acceptance's bound had been held on the
+intervals between frames, which read 0.55 and 0.60 s. The page latency under an active
+hold is unmeasured by design, since reading the page inside the window would add to the
+figure being measured.
+
 As built at the public switch (M3 step 11, 2026-10-24 and 25; the sweep and the golden
 world's release have their own FINDINGS entries, `disclosure-sweep` and `golden-release`).
 The hostname serves the application since the platform's change of 2026-10-24: the proxy's
@@ -4729,6 +4759,13 @@ ruling as the last, optional, time-boxed item outside the exit, with its own
 design pass on the runner story (the hard client is the GitHub runner, which must join
 per run); it slips without the milestone being unfinished. The golden world's site
 stays as the demo world's HR system.
+
+Ruled out of the demo milestone on 2026-11-09, at the final smoke's design pass. With
+Access landed and accepted on the validator's and the instance's paths, the public edge
+with Access is the standing answer for the machine clients; a tunnel would have cost a
+second window with live runs off and a repeated smoke for nothing the milestone claims.
+It returns on a need that edge does not meet: a second tenant, a finding against the
+edge, or the service token's renewal becoming a burden.
 
 **Landed 2026-11-03**, after the live path's acceptance of 2026-11-01 and before the
 final smoke, as the Frappe hostnames passage of the investigator milestone records it.
@@ -4847,7 +4884,9 @@ final smoke, as the Frappe hostnames passage of the investigator milestone recor
   because the benchmark's world is certified clean; degrading gracefully behind a
   real HRMS is a different runtime policy the benchmark does not prove.
 - **Private connectivity between the hosts**, superseded from the investigator
-  milestone's entry to the demo's or observed abuse (the hosting section).
+  milestone's entry to the demo's or observed abuse (the hosting section), and ruled
+  out of the demo milestone on 2026-11-09 once Access had landed; it returns on a need
+  the public edge with Access does not meet.
 - **A direct Anthropic API path beside Bedrock.** Not committed to; one provider
   keeps credentials, billing and audit in one place. Trigger: Bedrock lacking a
   model or feature the evaluation shows the product needs.

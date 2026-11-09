@@ -1,0 +1,1026 @@
+read 2026-11-09T12:46:14Z through the hostname with a browser Accept, status 200: the report page of run B after its close
+This demo serves a development world, one the investigator was built against. The results page's numbers come from a withheld world, generated after the procedure was frozen.
+All replays · Audit trail · Timeline
+live-cf3f5b1076fd88ee4baba6703a0b1c2b
+Scenario scenario_028
+Scenario date 2027-03-04 (Europe/Istanbul), the date the rules apply
+Ending completed
+System agent (tool_loop_then_finalization)
+Run admitted 2026-11-09T12:44:27.647292+00:00 · closed 2026-11-09T12:45:48.088066+00:00
+World 7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4
+Published 2026-11-09
+The run completed.
+The plan was approved by a person.
+20 completed reads returned 83 records from calendar, corpus, frappe, jira.
+The leave
+Felix Haddad (emp_006) is on annual leave from 2027-03-06 to 2027-03-10 (5 days, approved).
+frappe · leave leave_005
+id leave_005
+employee_id emp_006
+start 2027-03-06
+end 2027-03-10
+kind annual
+status approved
+Recorded in the log at 2026-11-09T12:44:32.889602+00:00, position 3 , position 5 .
+Impacts
+A deadline the leave affects: Payments API: close the audit findings for the new tenant (ticket_008).
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Candidates
+Arjun Schmidt (emp_001) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Arjun Schmidt (emp_001)
+id emp_001
+name Arjun Schmidt
+team_id team_004
+manager_id emp_009
+skills airflow, gcp, graphql
+location Bangalore
+country IN
+timezone Asia/Kolkata
+grade mid
+employment_type contractor
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Jonas Sharma (emp_002) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Jonas Sharma (emp_002)
+id emp_002
+name Jonas Sharma
+team_id team_001
+manager_id emp_027
+skills airflow, android, dbt, redis
+location Bangalore
+country IN
+timezone Asia/Kolkata
+grade junior
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Arjun Byrne (emp_003) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Arjun Byrne (emp_003)
+id emp_003
+name Arjun Byrne
+team_id team_001
+manager_id emp_027
+skills kubernetes, python
+location Toronto
+country CA
+timezone America/Toronto
+grade mid
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Sofia Haddad (emp_004) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Sofia Haddad (emp_004)
+id emp_004
+name Sofia Haddad
+team_id team_002
+manager_id emp_006
+skills android, dbt, java, kubernetes, spark
+location Berlin
+country DE
+timezone Europe/Berlin
+grade junior
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Tomasz Novak (emp_005) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Tomasz Novak (emp_005)
+id emp_005
+name Tomasz Novak
+team_id team_005
+manager_id emp_011
+skills airflow, android, dbt, go
+location Istanbul
+country TR
+timezone Europe/Istanbul
+grade senior
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Felix Haddad (emp_006) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not available; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Felix Haddad (emp_006)
+id emp_006
+name Felix Haddad
+team_id team_002
+manager_id emp_027
+skills android, python
+location Berlin
+country DE
+timezone Europe/Berlin
+grade lead
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+frappe · leave leave_005
+id leave_005
+employee_id emp_006
+start 2027-03-06
+end 2027-03-10
+kind annual
+status approved
+Recorded in the log at 2026-11-09T12:44:32.889602+00:00, position 3 , position 5 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Elif Patel (emp_007) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Elif Patel (emp_007)
+id emp_007
+name Elif Patel
+team_id team_003
+manager_id emp_014
+skills android, dbt, kubernetes
+location Amsterdam
+country NL
+timezone Europe/Amsterdam
+grade mid
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Omar Moreau (emp_008) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Omar Moreau (emp_008)
+id emp_008
+name Omar Moreau
+team_id team_003
+manager_id emp_014
+skills airflow, dbt, go
+location Amsterdam
+country NL
+timezone Europe/Amsterdam
+grade junior
+employment_type contractor
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Yusuf Fernandes (emp_009) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Yusuf Fernandes (emp_009)
+id emp_009
+name Yusuf Fernandes
+team_id team_004
+manager_id emp_027
+skills ios
+location Berlin
+country DE
+timezone Europe/Berlin
+grade lead
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Felix Jansen (emp_010) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Felix Jansen (emp_010)
+id emp_010
+name Felix Jansen
+team_id team_004
+manager_id emp_009
+skills go, ios, typescript
+location Bangalore
+country IN
+timezone Asia/Kolkata
+grade junior
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Aylin Sharma (emp_011) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Aylin Sharma (emp_011)
+id emp_011
+name Aylin Sharma
+team_id team_005
+manager_id emp_027
+skills dbt, grafana
+location Istanbul
+country TR
+timezone Europe/Istanbul
+grade lead
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Selin Moreau (emp_012) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Selin Moreau (emp_012)
+id emp_012
+name Selin Moreau
+team_id team_002
+manager_id emp_006
+skills android, go
+location Berlin
+country DE
+timezone Europe/Berlin
+grade junior
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Nadia Moreau (emp_013) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Nadia Moreau (emp_013)
+id emp_013
+name Nadia Moreau
+team_id team_002
+manager_id emp_006
+skills dbt
+location Istanbul
+country TR
+timezone Europe/Istanbul
+grade senior
+employment_type contractor
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Arjun Demir (emp_014) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Arjun Demir (emp_014)
+id emp_014
+name Arjun Demir
+team_id team_003
+manager_id emp_027
+skills android, dbt, react
+location Amsterdam
+country NL
+timezone Europe/Amsterdam
+grade lead
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Ravi Muller (emp_015) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Ravi Muller (emp_015)
+id emp_015
+name Ravi Muller
+team_id team_001
+manager_id emp_027
+skills none
+location Bangalore
+country IN
+timezone Asia/Kolkata
+grade mid
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Deniz Kowalski (emp_016) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Deniz Kowalski (emp_016)
+id emp_016
+name Deniz Kowalski
+team_id team_001
+manager_id emp_027
+skills graphql, ios, python
+location Bangalore
+country IN
+timezone Asia/Kolkata
+grade senior
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Priya Sharma (emp_017) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Priya Sharma (emp_017)
+id emp_017
+name Priya Sharma
+team_id team_003
+manager_id emp_014
+skills go, python
+location Amsterdam
+country NL
+timezone Europe/Amsterdam
+grade mid
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Elif Kowalski (emp_018) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Elif Kowalski (emp_018)
+id emp_018
+name Elif Kowalski
+team_id team_005
+manager_id emp_011
+skills airflow, redis
+location Istanbul
+country TR
+timezone Europe/Istanbul
+grade mid
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Alice Fernandes (emp_019) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Alice Fernandes (emp_019)
+id emp_019
+name Alice Fernandes
+team_id team_002
+manager_id emp_006
+skills dbt, go
+location Berlin
+country DE
+timezone Europe/Berlin
+grade senior
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Aylin Rossi (emp_020) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Aylin Rossi (emp_020)
+id emp_020
+name Aylin Rossi
+team_id team_005
+manager_id emp_011
+skills graphql, java, redis, typescript
+location Istanbul
+country TR
+timezone Europe/Istanbul
+grade mid
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Mateus Yilmaz (emp_021) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Mateus Yilmaz (emp_021)
+id emp_021
+name Mateus Yilmaz
+team_id team_001
+manager_id emp_027
+skills dbt
+location Bangalore
+country IN
+timezone Asia/Kolkata
+grade junior
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Marta Demir (emp_022) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Marta Demir (emp_022)
+id emp_022
+name Marta Demir
+team_id team_003
+manager_id emp_014
+skills grafana, ios, typescript
+location Istanbul
+country TR
+timezone Europe/Istanbul
+grade senior
+employment_type contractor
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Yusuf Kaya (emp_023) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Yusuf Kaya (emp_023)
+id emp_023
+name Yusuf Kaya
+team_id team_004
+manager_id emp_009
+skills airflow, android, elasticsearch
+location Bangalore
+country IN
+timezone Asia/Kolkata
+grade mid
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Emre Nakamura (emp_024) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Emre Nakamura (emp_024)
+id emp_024
+name Emre Nakamura
+team_id team_003
+manager_id emp_014
+skills go, ios
+location Amsterdam
+country NL
+timezone Europe/Amsterdam
+grade mid
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Arjun Moreau (emp_025) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Arjun Moreau (emp_025)
+id emp_025
+name Arjun Moreau
+team_id team_002
+manager_id emp_006
+skills android, dbt
+location London
+country GB
+timezone Europe/London
+grade mid
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Whether Arjun Okafor (emp_026) can cover Payments API: close the audit findings for the new tenant (ticket_008) is unknown.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Arjun Okafor (emp_026)
+id emp_026
+name Arjun Okafor
+team_id team_004
+manager_id emp_009
+skills none
+location Bangalore
+country IN
+timezone Asia/Kolkata
+grade senior
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Derived from claim_003 .
+Noor Novak (emp_027) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Noor Novak (emp_027)
+id emp_027
+name Noor Novak
+team_id team_001
+manager_id none
+skills python
+location Bangalore
+country IN
+timezone Asia/Kolkata
+grade lead
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+Liam Okafor (emp_028) cannot cover Payments API: close the audit findings for the new tenant (ticket_008): is not on the component; fails the skill criterion.
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+frappe · employee Liam Okafor (emp_028)
+id emp_028
+name Liam Okafor
+team_id team_005
+manager_id emp_011
+skills kubernetes
+location Toronto
+country CA
+timezone America/Toronto
+grade junior
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+jira · component Payments API (comp_001)
+id comp_001
+name Payments API
+member_ids emp_006, emp_026, emp_027
+Recorded in the log at 2026-11-09T12:44:35.108247+00:00, position 6 .
+jira · work_item Payments API: close the audit findings for the new tenant (ticket_008)
+id ticket_008
+title Payments API: close the audit findings for the new tenant
+owner_id emp_006
+status in_progress
+component_id comp_001
+opened_on 2027-02-26
+resolved_on none
+due_on 2027-03-07
+Recorded in the log at 2026-11-09T12:44:35.578327+00:00, position 7 , position 32 .
+The plan
+Whether Payments API: close the audit findings for the new tenant (ticket_008) is covered is unknown.
+Derived from claim_029 .
+Constraints that apply
+clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005) applies to Payments API: close the audit findings for the new tenant (ticket_008). (the impact)
+corpus · clause clause_005 of Release policy: Payments API: close the audit findings for the new tenant (doc_005)
+As read, inside Release policy: Payments API: close the audit findings for the new tenant (doc_005):
+The Payments API: close the audit findings for the new tenant release needs an engineer with Kafka experience.
+Model-supplied quotation (requires), marked above.
+Model-supplied quotation (requires), marked above.
+Recorded in the log at 2026-11-09T12:44:43.287201+00:00, position 15 , position 16 , position 24 .
+Stated unknowns
+The has skill of Arjun Okafor (emp_026) could not be established: the record holds no value for it.
+frappe · employee Arjun Okafor (emp_026)
+id emp_026
+name Arjun Okafor
+team_id team_004
+manager_id emp_009
+skills none
+location Bangalore
+country IN
+timezone Asia/Kolkata
+grade senior
+employment_type employee
+Recorded in the log at 2026-11-09T12:44:34.799424+00:00, position 4 .
+Source conflicts
+The run reported no conflict.
+Leave Impact Agent · revision 266422f7b6732bec47771e19f17f6095480dad1e

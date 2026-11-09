@@ -1,0 +1,1357 @@
+{
+ "capture": "2026-11-09",
+ "sources": {
+  "subscribers-runA.json": "4aa42170d91fe41e18032d7e5f2aec57b7703de442d6fbfc9838720cff06c964",
+  "subscribers-runB.json": "a927a722884bd8f50cb4d4beb92cde79aab370f0f248067732e010855b3d5929",
+  "phases-runC.json": "ce140a729142e6f3e407603d8aecbe5b497d3dee62f551cbf4141d3d3a511f61",
+  "idle-window.json": "dd6e1f5dd998195e05ce9f2a8e1405806c7f72a4e374b25005bca5716cdddcf8",
+  "runs-samples.jsonl": "18d5fefd88beb685ae91ca27431c8ce383448ec2a8550da580e3e91b2926ba26"
+ },
+ "subscribers": {
+  "runA": {
+   "label": "runA",
+   "mode": "started",
+   "started": {
+    "scenario": "scenario_028",
+    "start_status": 303,
+    "start_seconds": 0.4122,
+    "reach_seconds": 1.1151,
+    "decision": "decline",
+    "decision_posted": true,
+    "decision_status": 303,
+    "decision_seconds": 0.8601
+   },
+   "attempt": "live-7a9c26dc2f03430553420714710d37bd",
+   "started_utc": "2026-11-09T12:42:25.628904+00:00",
+   "bound": 8,
+   "clients_asked": 8,
+   "held": 9,
+   "subscribers": 10,
+   "ended": {
+    "closed": 8,
+    "closed by the probe": 1,
+    "refused": 1
+   },
+   "errors": [],
+   "first_frame_seconds": {
+    "count": 9,
+    "min": 0.0083,
+    "median": 0.0235,
+    "p95": 0.3993,
+    "max": 0.3993
+   },
+   "line_frames_after_dump": 360,
+   "heartbeat_gap_seconds": {
+    "count": 23,
+    "min": 15.1591,
+    "median": 15.2549,
+    "p95": 15.8359,
+    "max": 15.8607
+   },
+   "heartbeat_cadence_seconds": 15.0,
+   "interval_lag_seconds": {
+    "count": 351,
+    "min": -0.8796,
+    "median": -0.017,
+    "p95": 0.5541,
+    "max": 0.949
+   },
+   "bunched_pairs": 0,
+   "delivery_seconds": {
+    "count": 360,
+    "min": 1.0416,
+    "median": 1.6304,
+    "p95": 2.0001,
+    "max": 2.1014
+   },
+   "active_delivery_seconds": {
+    "count": 344,
+    "min": 1.0416,
+    "median": 1.6304,
+    "p95": 2.0001,
+    "max": 2.1014
+   },
+   "delivery_bound_seconds": 1.521,
+   "clock_offset_seconds": -0.897,
+   "beyond_bound": {
+    "index": 8,
+    "status": 503,
+    "ended": "refused"
+   },
+   "released": {
+    "index": 0,
+    "ended": "closed by the probe",
+    "ended_at": 32.5639
+   },
+   "replacement": {
+    "index": 9,
+    "status": 200,
+    "first_frame_at": 36.5918,
+    "ended": null
+   },
+   "page_before": {
+    "statuses": [],
+    "seconds": null
+   },
+   "page_during": {
+    "statuses": [
+     "200"
+    ],
+    "seconds": {
+     "count": 3,
+     "min": 0.6868,
+     "median": 0.8072,
+     "p95": 1.2865,
+     "max": 1.2865
+    }
+   },
+   "page_during_over_before": null,
+   "events_headers": {
+    "content-type": "text/event-stream; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "cache-control": "no-store",
+    "server": "cloudflare",
+    "via": "1.1 Caddy",
+    "cf-cache-status": "DYNAMIC",
+    "date": "Mon, 09 Nov 2026 12:42:27 GMT"
+   },
+   "timeline": {
+    "status": 200,
+    "content_security_policy": null,
+    "report_only": null,
+    "inline_script_present": true,
+    "beacon_present": true
+   },
+   "hold_ended_by": "closing frames",
+   "phases": {
+    "admitted": {
+     "recorded_at": "2026-11-09T12:42:26.674555+00:00",
+     "epoch": 1794228146.675,
+     "position": 1
+    },
+    "approval_requested": {
+     "recorded_at": "2026-11-09T12:42:53.473919+00:00",
+     "epoch": 1794228173.474,
+     "position": 44
+    },
+    "declined": {
+     "recorded_at": "2026-11-09T12:43:43.728497+00:00",
+     "epoch": 1794228223.728,
+     "position": 46
+    },
+    "closed": {
+     "recorded_at": "2026-11-09T12:43:43.728497+00:00",
+     "epoch": 1794228223.728,
+     "position": 46,
+     "status": "declined"
+    }
+   },
+   "held_intervals": [
+    {
+     "name": "held",
+     "from": 1794228146.624,
+     "to": 1794228177.296,
+     "seconds": 30.672
+    },
+    {
+     "name": "held again",
+     "from": 1794228181.324,
+     "to": 1794228243.067,
+     "seconds": 61.743
+    }
+   ]
+  },
+  "runB": {
+   "label": "runB",
+   "mode": "started",
+   "started": {
+    "scenario": "scenario_028",
+    "start_status": 303,
+    "start_seconds": 0.4052,
+    "reach_seconds": 1.1152,
+    "decision": "approve",
+    "decision_posted": true,
+    "decision_status": 303,
+    "decision_seconds": 0.73
+   },
+   "attempt": "live-cf3f5b1076fd88ee4baba6703a0b1c2b",
+   "started_utc": "2026-11-09T12:44:26.803525+00:00",
+   "bound": 8,
+   "clients_asked": 8,
+   "held": 9,
+   "subscribers": 10,
+   "ended": {
+    "closed": 8,
+    "closed by the probe": 1,
+    "refused": 1
+   },
+   "errors": [],
+   "first_frame_seconds": {
+    "count": 9,
+    "min": 0.0346,
+    "median": 0.0599,
+    "p95": 0.5331,
+    "max": 0.5331
+   },
+   "line_frames_after_dump": 384,
+   "heartbeat_gap_seconds": {
+    "count": 23,
+    "min": 15.2326,
+    "median": 15.3127,
+    "p95": 15.6108,
+    "max": 15.665
+   },
+   "heartbeat_cadence_seconds": 15.0,
+   "interval_lag_seconds": {
+    "count": 375,
+    "min": -0.8905,
+    "median": -0.0154,
+    "p95": 0.6039,
+    "max": 1.077
+   },
+   "bunched_pairs": 0,
+   "delivery_seconds": {
+    "count": 384,
+    "min": 1.079,
+    "median": 1.5648,
+    "p95": 2.094,
+    "max": 2.1869
+   },
+   "active_delivery_seconds": {
+    "count": 344,
+    "min": 1.079,
+    "median": 1.6167,
+    "p95": 2.094,
+    "max": 2.1869
+   },
+   "delivery_bound_seconds": 1.288,
+   "clock_offset_seconds": -0.956,
+   "beyond_bound": {
+    "index": 8,
+    "status": 503,
+    "ended": "refused"
+   },
+   "released": {
+    "index": 0,
+    "ended": "closed by the probe",
+    "ended_at": 30.7482
+   },
+   "replacement": {
+    "index": 9,
+    "status": 200,
+    "first_frame_at": 34.798,
+    "ended": null
+   },
+   "page_before": {
+    "statuses": [],
+    "seconds": null
+   },
+   "page_during": {
+    "statuses": [
+     "200"
+    ],
+    "seconds": {
+     "count": 3,
+     "min": 0.5986,
+     "median": 0.6028,
+     "p95": 0.6286,
+     "max": 0.6286
+    }
+   },
+   "page_during_over_before": null,
+   "events_headers": {
+    "content-type": "text/event-stream; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "cache-control": "no-store",
+    "server": "cloudflare",
+    "via": "1.1 Caddy",
+    "cf-cache-status": "DYNAMIC",
+    "date": "Mon, 09 Nov 2026 12:44:28 GMT"
+   },
+   "timeline": {
+    "status": 200,
+    "content_security_policy": null,
+    "report_only": null,
+    "inline_script_present": true,
+    "beacon_present": true
+   },
+   "hold_ended_by": "closing frames",
+   "phases": {
+    "admitted": {
+     "recorded_at": "2026-11-09T12:44:27.647292+00:00",
+     "epoch": 1794228267.647,
+     "position": 1
+    },
+    "approval_requested": {
+     "recorded_at": "2026-11-09T12:44:53.932570+00:00",
+     "epoch": 1794228293.933,
+     "position": 44
+    },
+    "approved": {
+     "recorded_at": "2026-11-09T12:45:42.886441+00:00",
+     "epoch": 1794228342.886,
+     "position": 46
+    },
+    "closed": {
+     "recorded_at": "2026-11-09T12:45:48.088066+00:00",
+     "epoch": 1794228348.088,
+     "position": 49,
+     "status": "completed"
+    }
+   },
+   "held_intervals": [
+    {
+     "name": "held",
+     "from": 1794228267.545,
+     "to": 1794228296.596,
+     "seconds": 29.051
+    },
+    {
+     "name": "held again",
+     "from": 1794228300.646,
+     "to": 1794228362.118,
+     "seconds": 61.472
+    }
+   ]
+  }
+ },
+ "entered_phases": {
+  "runC": {
+   "admitted": {
+    "recorded_at": "2026-11-09T14:02:42.133572+00:00",
+    "epoch": 1794232962.134
+   },
+   "approval_requested": {
+    "recorded_at": "2026-11-09T14:03:14.663332+00:00",
+    "epoch": 1794232994.663
+   },
+   "approved": {
+    "recorded_at": "2026-11-09T14:04:34.317611+00:00",
+    "epoch": 1794233074.318
+   },
+   "closed": {
+    "recorded_at": "2026-11-09T14:04:39.518933+00:00",
+    "epoch": 1794233079.519
+   }
+  }
+ },
+ "windows": [
+  {
+   "name": "runA:active",
+   "from": 1794228146.675,
+   "to": 1794228173.474
+  },
+  {
+   "name": "runA:awaiting",
+   "from": 1794228173.474,
+   "to": 1794228223.728
+  },
+  {
+   "name": "runB:active",
+   "from": 1794228267.647,
+   "to": 1794228293.933
+  },
+  {
+   "name": "runB:awaiting",
+   "from": 1794228293.933,
+   "to": 1794228342.886
+  },
+  {
+   "name": "runB:resumed",
+   "from": 1794228342.886,
+   "to": 1794228348.088
+  },
+  {
+   "name": "runC:active",
+   "from": 1794232962.134,
+   "to": 1794232994.663
+  },
+  {
+   "name": "runC:awaiting",
+   "from": 1794232994.663,
+   "to": 1794233074.318
+  },
+  {
+   "name": "runC:resumed",
+   "from": 1794233074.318,
+   "to": 1794233079.519
+  }
+ ],
+ "idle_window": {
+  "from": 1794227760.0,
+  "to": 1794228135.0,
+  "seconds": 375.0,
+  "source": "entered by the operator: the sampler started at 12:35:07 UTC and the ledger page was read at 12:35:30; no request was made to the site from then until run A's probe launched at 12:42:25, its first request the readiness read"
+ },
+ "held": [
+  {
+   "from": 1794228146.624,
+   "to": 1794228177.296
+  },
+  {
+   "from": 1794228181.324,
+   "to": 1794228243.067
+  },
+  {
+   "from": 1794228267.545,
+   "to": 1794228296.596
+  },
+  {
+   "from": 1794228300.646,
+   "to": 1794228362.118
+  }
+ ],
+ "samples": {
+  "runs": {
+   "samples": 2520,
+   "from": "12:35:07",
+   "to": "14:05:06",
+   "span_seconds": 5399.1,
+   "host_total": 1930240000,
+   "phases": {
+    "between": {
+     "samples": 2218,
+     "from": "12:35:07",
+     "to": "14:05:06",
+     "held_samples": 16,
+     "held_seconds": 30.6,
+     "host_available_min": 901013504,
+     "host_used_outside_bounded_max": 611573760,
+     "containers": {
+      "leaveimpact-app-1": {
+       "absent_samples": 0,
+       "current_max": 170827776,
+       "anon_max": 142729216,
+       "threads_max": 4,
+       "cpu_rate": {
+        "mean": 0.0416,
+        "step_max": 0.3843,
+        "seconds": 4743.4,
+        "usage_usec": 197308698,
+        "wall_seconds": 4743.385
+       },
+       "cpu_rate_held": {
+        "mean": 0.0442,
+        "step_max": 0.1953,
+        "seconds": 30.6,
+        "usage_usec": 1351243,
+        "wall_seconds": 30.56
+       }
+      },
+      "leaveimpact-postgres-1": {
+       "absent_samples": 0,
+       "current_max": 107790336,
+       "anon_max": 10895360,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.0153,
+        "step_max": 0.1823,
+        "seconds": 4743.4,
+        "usage_usec": 72473553,
+        "wall_seconds": 4743.385
+       },
+       "cpu_rate_held": {
+        "mean": 0.0411,
+        "step_max": 0.1823,
+        "seconds": 30.6,
+        "usage_usec": 1256326,
+        "wall_seconds": 30.56
+       }
+      },
+      "leaveimpact-worker-1": {
+       "absent_samples": 0,
+       "current_max": 204701696,
+       "anon_max": 176283648,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.0296,
+        "step_max": 1.129,
+        "seconds": 4743.4,
+        "usage_usec": 140546476,
+        "wall_seconds": 4743.385
+       },
+       "cpu_rate_held": {
+        "mean": 0.9157,
+        "step_max": 1.129,
+        "seconds": 30.6,
+        "usage_usec": 27984980,
+        "wall_seconds": 30.56
+       }
+      },
+      "proxy-caddy-1": {
+       "absent_samples": 0,
+       "current_max": 24129536,
+       "anon_max": 13971456,
+       "threads_max": 9,
+       "cpu_rate": {
+        "mean": 0.0001,
+        "step_max": 0.0081,
+        "seconds": 4743.4,
+        "usage_usec": 486903,
+        "wall_seconds": 4743.385
+       },
+       "cpu_rate_held": {
+        "mean": 0.0003,
+        "step_max": 0.0026,
+        "seconds": 30.6,
+        "usage_usec": 9741,
+        "wall_seconds": 30.56
+       }
+      }
+     }
+    },
+    "idle": {
+     "samples": 175,
+     "from": "12:36:01",
+     "to": "12:42:13",
+     "held_samples": 0,
+     "held_seconds": 0,
+     "host_available_min": 994549760,
+     "host_used_outside_bounded_max": 584146944,
+     "containers": {
+      "leaveimpact-app-1": {
+       "absent_samples": 0,
+       "current_max": 147181568,
+       "anon_max": 138063872,
+       "threads_max": 2,
+       "cpu_rate": {
+        "mean": 0.041,
+        "step_max": 0.1968,
+        "seconds": 372.4,
+        "usage_usec": 15257846,
+        "wall_seconds": 372.382
+       },
+       "cpu_rate_held": null
+      },
+      "leaveimpact-postgres-1": {
+       "absent_samples": 0,
+       "current_max": 100941824,
+       "anon_max": 6905856,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.0072,
+        "step_max": 0.0214,
+        "seconds": 372.4,
+        "usage_usec": 2673805,
+        "wall_seconds": 372.382
+       },
+       "cpu_rate_held": null
+      },
+      "leaveimpact-worker-1": {
+       "absent_samples": 0,
+       "current_max": 128368640,
+       "anon_max": 121233408,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.01,
+        "step_max": 0.1466,
+        "seconds": 372.4,
+        "usage_usec": 3736406,
+        "wall_seconds": 372.382
+       },
+       "cpu_rate_held": null
+      },
+      "proxy-caddy-1": {
+       "absent_samples": 0,
+       "current_max": 21409792,
+       "anon_max": 11698176,
+       "threads_max": 9,
+       "cpu_rate": {
+        "mean": 0.0001,
+        "step_max": 0.004,
+        "seconds": 372.4,
+        "usage_usec": 29509,
+        "wall_seconds": 372.382
+       },
+       "cpu_rate_held": null
+      }
+     }
+    },
+    "runA:active": {
+     "samples": 12,
+     "from": "12:42:28",
+     "to": "12:42:52",
+     "held_samples": 12,
+     "held_seconds": 23.7,
+     "host_available_min": 883609600,
+     "host_used_outside_bounded_max": 574722048,
+     "containers": {
+      "leaveimpact-app-1": {
+       "absent_samples": 0,
+       "current_max": 136568832,
+       "anon_max": 125652992,
+       "threads_max": 9,
+       "cpu_rate": {
+        "mean": 0.1823,
+        "step_max": 0.3793,
+        "seconds": 23.7,
+        "usage_usec": 4314995,
+        "wall_seconds": 23.667
+       },
+       "cpu_rate_held": {
+        "mean": 0.1823,
+        "step_max": 0.3793,
+        "seconds": 23.7,
+        "usage_usec": 4314995,
+        "wall_seconds": 23.667
+       }
+      },
+      "leaveimpact-postgres-1": {
+       "absent_samples": 0,
+       "current_max": 108564480,
+       "anon_max": 13901824,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.0956,
+        "step_max": 0.1235,
+        "seconds": 23.7,
+        "usage_usec": 2261946,
+        "wall_seconds": 23.667
+       },
+       "cpu_rate_held": {
+        "mean": 0.0956,
+        "step_max": 0.1235,
+        "seconds": 23.7,
+        "usage_usec": 2261946,
+        "wall_seconds": 23.667
+       }
+      },
+      "leaveimpact-worker-1": {
+       "absent_samples": 0,
+       "current_max": 241438720,
+       "anon_max": 229974016,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.1797,
+        "step_max": 0.9132,
+        "seconds": 23.7,
+        "usage_usec": 4253447,
+        "wall_seconds": 23.667
+       },
+       "cpu_rate_held": {
+        "mean": 0.1797,
+        "step_max": 0.9132,
+        "seconds": 23.7,
+        "usage_usec": 4253447,
+        "wall_seconds": 23.667
+       }
+      },
+      "proxy-caddy-1": {
+       "absent_samples": 0,
+       "current_max": 22265856,
+       "anon_max": 12484608,
+       "threads_max": 9,
+       "cpu_rate": {
+        "mean": 0.0018,
+        "step_max": 0.004,
+        "seconds": 23.7,
+        "usage_usec": 42075,
+        "wall_seconds": 23.667
+       },
+       "cpu_rate_held": {
+        "mean": 0.0018,
+        "step_max": 0.004,
+        "seconds": 23.7,
+        "usage_usec": 42075,
+        "wall_seconds": 23.667
+       }
+      }
+     }
+    },
+    "runA:awaiting": {
+     "samples": 23,
+     "from": "12:42:54",
+     "to": "12:43:41",
+     "held_samples": 21,
+     "held_seconds": 40.9,
+     "host_available_min": 1003155456,
+     "host_used_outside_bounded_max": 560115712,
+     "containers": {
+      "leaveimpact-app-1": {
+       "absent_samples": 0,
+       "current_max": 152530944,
+       "anon_max": 141127680,
+       "threads_max": 5,
+       "cpu_rate": {
+        "mean": 0.1251,
+        "step_max": 0.5308,
+        "seconds": 47.3,
+        "usage_usec": 5919014,
+        "wall_seconds": 47.306
+       },
+       "cpu_rate_held": {
+        "mean": 0.1014,
+        "step_max": 0.2691,
+        "seconds": 40.9,
+        "usage_usec": 4142735,
+        "wall_seconds": 40.873
+       }
+      },
+      "leaveimpact-postgres-1": {
+       "absent_samples": 0,
+       "current_max": 102543360,
+       "anon_max": 7548928,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.0951,
+        "step_max": 0.1306,
+        "seconds": 47.3,
+        "usage_usec": 4498418,
+        "wall_seconds": 47.306
+       },
+       "cpu_rate_held": {
+        "mean": 0.0941,
+        "step_max": 0.1306,
+        "seconds": 40.9,
+        "usage_usec": 3847206,
+        "wall_seconds": 40.873
+       }
+      },
+      "leaveimpact-worker-1": {
+       "absent_samples": 0,
+       "current_max": 139190272,
+       "anon_max": 126607360,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.0789,
+        "step_max": 0.2003,
+        "seconds": 47.3,
+        "usage_usec": 3730829,
+        "wall_seconds": 47.306
+       },
+       "cpu_rate_held": {
+        "mean": 0.082,
+        "step_max": 0.2003,
+        "seconds": 40.9,
+        "usage_usec": 3352140,
+        "wall_seconds": 40.873
+       }
+      },
+      "proxy-caddy-1": {
+       "absent_samples": 0,
+       "current_max": 23072768,
+       "anon_max": 13103104,
+       "threads_max": 9,
+       "cpu_rate": {
+        "mean": 0.0005,
+        "step_max": 0.0053,
+        "seconds": 47.3,
+        "usage_usec": 24174,
+        "wall_seconds": 47.306
+       },
+       "cpu_rate_held": {
+        "mean": 0.0004,
+        "step_max": 0.0053,
+        "seconds": 40.9,
+        "usage_usec": 18046,
+        "wall_seconds": 40.873
+       }
+      }
+     }
+    },
+    "runB:active": {
+     "samples": 12,
+     "from": "12:44:29",
+     "to": "12:44:53",
+     "held_samples": 12,
+     "held_seconds": 23.7,
+     "host_available_min": 814141440,
+     "host_used_outside_bounded_max": 560123904,
+     "containers": {
+      "leaveimpact-app-1": {
+       "absent_samples": 0,
+       "current_max": 154341376,
+       "anon_max": 137605120,
+       "threads_max": 9,
+       "cpu_rate": {
+        "mean": 0.1621,
+        "step_max": 0.4905,
+        "seconds": 23.7,
+        "usage_usec": 3842931,
+        "wall_seconds": 23.714
+       },
+       "cpu_rate_held": {
+        "mean": 0.1621,
+        "step_max": 0.4905,
+        "seconds": 23.7,
+        "usage_usec": 3842931,
+        "wall_seconds": 23.714
+       }
+      },
+      "leaveimpact-postgres-1": {
+       "absent_samples": 0,
+       "current_max": 110096384,
+       "anon_max": 13352960,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.0939,
+        "step_max": 0.1086,
+        "seconds": 23.7,
+        "usage_usec": 2226858,
+        "wall_seconds": 23.714
+       },
+       "cpu_rate_held": {
+        "mean": 0.0939,
+        "step_max": 0.1086,
+        "seconds": 23.7,
+        "usage_usec": 2226858,
+        "wall_seconds": 23.714
+       }
+      },
+      "leaveimpact-worker-1": {
+       "absent_samples": 0,
+       "current_max": 302665728,
+       "anon_max": 279052288,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.1492,
+        "step_max": 0.9607,
+        "seconds": 23.7,
+        "usage_usec": 3537193,
+        "wall_seconds": 23.714
+       },
+       "cpu_rate_held": {
+        "mean": 0.1492,
+        "step_max": 0.9607,
+        "seconds": 23.7,
+        "usage_usec": 3537193,
+        "wall_seconds": 23.714
+       }
+      },
+      "proxy-caddy-1": {
+       "absent_samples": 0,
+       "current_max": 23773184,
+       "anon_max": 13860864,
+       "threads_max": 9,
+       "cpu_rate": {
+        "mean": 0.0012,
+        "step_max": 0.003,
+        "seconds": 23.7,
+        "usage_usec": 29582,
+        "wall_seconds": 23.714
+       },
+       "cpu_rate_held": {
+        "mean": 0.0012,
+        "step_max": 0.003,
+        "seconds": 23.7,
+        "usage_usec": 29582,
+        "wall_seconds": 23.714
+       }
+      }
+     }
+    },
+    "runB:awaiting": {
+     "samples": 23,
+     "from": "12:44:55",
+     "to": "12:45:42",
+     "held_samples": 21,
+     "held_seconds": 40.8,
+     "host_available_min": 927154176,
+     "host_used_outside_bounded_max": 572698624,
+     "containers": {
+      "leaveimpact-app-1": {
+       "absent_samples": 0,
+       "current_max": 144506880,
+       "anon_max": 127770624,
+       "threads_max": 6,
+       "cpu_rate": {
+        "mean": 0.1401,
+        "step_max": 0.5882,
+        "seconds": 47.2,
+        "usage_usec": 6615174,
+        "wall_seconds": 47.218
+       },
+       "cpu_rate_held": {
+        "mean": 0.1103,
+        "step_max": 0.3117,
+        "seconds": 40.8,
+        "usage_usec": 4498257,
+        "wall_seconds": 40.78
+       }
+      },
+      "leaveimpact-postgres-1": {
+       "absent_samples": 0,
+       "current_max": 105984000,
+       "anon_max": 9515008,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.1022,
+        "step_max": 0.1641,
+        "seconds": 47.2,
+        "usage_usec": 4825926,
+        "wall_seconds": 47.218
+       },
+       "cpu_rate_held": {
+        "mean": 0.099,
+        "step_max": 0.1279,
+        "seconds": 40.8,
+        "usage_usec": 4037569,
+        "wall_seconds": 40.78
+       }
+      },
+      "leaveimpact-worker-1": {
+       "absent_samples": 0,
+       "current_max": 183693312,
+       "anon_max": 160509952,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.0911,
+        "step_max": 0.2267,
+        "seconds": 47.2,
+        "usage_usec": 4300504,
+        "wall_seconds": 47.218
+       },
+       "cpu_rate_held": {
+        "mean": 0.086,
+        "step_max": 0.2256,
+        "seconds": 40.8,
+        "usage_usec": 3507389,
+        "wall_seconds": 40.78
+       }
+      },
+      "proxy-caddy-1": {
+       "absent_samples": 0,
+       "current_max": 24018944,
+       "anon_max": 13934592,
+       "threads_max": 9,
+       "cpu_rate": {
+        "mean": 0.0005,
+        "step_max": 0.0054,
+        "seconds": 47.2,
+        "usage_usec": 24336,
+        "wall_seconds": 47.218
+       },
+       "cpu_rate_held": {
+        "mean": 0.0002,
+        "step_max": 0.0016,
+        "seconds": 40.8,
+        "usage_usec": 9144,
+        "wall_seconds": 40.78
+       }
+      }
+     }
+    },
+    "runB:resumed": {
+     "samples": 2,
+     "from": "12:45:44",
+     "to": "12:45:46",
+     "held_samples": 2,
+     "held_seconds": 2.1,
+     "host_available_min": 878563328,
+     "host_used_outside_bounded_max": 557748224,
+     "containers": {
+      "leaveimpact-app-1": {
+       "absent_samples": 0,
+       "current_max": 144760832,
+       "anon_max": 127897600,
+       "threads_max": 4,
+       "cpu_rate": {
+        "mean": 0.059,
+        "step_max": 0.059,
+        "seconds": 2.1,
+        "usage_usec": 126501,
+        "wall_seconds": 2.143
+       },
+       "cpu_rate_held": {
+        "mean": 0.059,
+        "step_max": 0.059,
+        "seconds": 2.1,
+        "usage_usec": 126501,
+        "wall_seconds": 2.143
+       }
+      },
+      "leaveimpact-postgres-1": {
+       "absent_samples": 0,
+       "current_max": 102244352,
+       "anon_max": 6492160,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.0943,
+        "step_max": 0.0943,
+        "seconds": 2.1,
+        "usage_usec": 202028,
+        "wall_seconds": 2.143
+       },
+       "cpu_rate_held": {
+        "mean": 0.0943,
+        "step_max": 0.0943,
+        "seconds": 2.1,
+        "usage_usec": 202028,
+        "wall_seconds": 2.143
+       }
+      },
+      "leaveimpact-worker-1": {
+       "absent_samples": 0,
+       "current_max": 246923264,
+       "anon_max": 220733440,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.9802,
+        "step_max": 0.9802,
+        "seconds": 2.1,
+        "usage_usec": 2100642,
+        "wall_seconds": 2.143
+       },
+       "cpu_rate_held": {
+        "mean": 0.9802,
+        "step_max": 0.9802,
+        "seconds": 2.1,
+        "usage_usec": 2100642,
+        "wall_seconds": 2.143
+       }
+      },
+      "proxy-caddy-1": {
+       "absent_samples": 0,
+       "current_max": 23736320,
+       "anon_max": 13942784,
+       "threads_max": 9,
+       "cpu_rate": {
+        "mean": 0.0001,
+        "step_max": 0.0001,
+        "seconds": 2.1,
+        "usage_usec": 165,
+        "wall_seconds": 2.143
+       },
+       "cpu_rate_held": {
+        "mean": 0.0001,
+        "step_max": 0.0001,
+        "seconds": 2.1,
+        "usage_usec": 165,
+        "wall_seconds": 2.143
+       }
+      }
+     }
+    },
+    "runC:active": {
+     "samples": 15,
+     "from": "14:02:43",
+     "to": "14:03:13",
+     "held_samples": 0,
+     "held_seconds": 0,
+     "host_available_min": 809082880,
+     "host_used_outside_bounded_max": 547057664,
+     "containers": {
+      "leaveimpact-app-1": {
+       "absent_samples": 0,
+       "current_max": 158806016,
+       "anon_max": 129130496,
+       "threads_max": 2,
+       "cpu_rate": {
+        "mean": 0.0504,
+        "step_max": 0.205,
+        "seconds": 30.0,
+        "usage_usec": 1513946,
+        "wall_seconds": 30.024
+       },
+       "cpu_rate_held": null
+      },
+      "leaveimpact-postgres-1": {
+       "absent_samples": 0,
+       "current_max": 110993408,
+       "anon_max": 13299712,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.0132,
+        "step_max": 0.0279,
+        "seconds": 30.0,
+        "usage_usec": 397106,
+        "wall_seconds": 30.024
+       },
+       "cpu_rate_held": null
+      },
+      "leaveimpact-worker-1": {
+       "absent_samples": 0,
+       "current_max": 306569216,
+       "anon_max": 279879680,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.1442,
+        "step_max": 1.1236,
+        "seconds": 30.0,
+        "usage_usec": 4328058,
+        "wall_seconds": 30.024
+       },
+       "cpu_rate_held": null
+      },
+      "proxy-caddy-1": {
+       "absent_samples": 0,
+       "current_max": 22118400,
+       "anon_max": 11993088,
+       "threads_max": 9,
+       "cpu_rate": {
+        "mean": 0.0004,
+        "step_max": 0.0017,
+        "seconds": 30.0,
+        "usage_usec": 11570,
+        "wall_seconds": 30.024
+       },
+       "cpu_rate_held": null
+      }
+     }
+    },
+    "runC:awaiting": {
+     "samples": 37,
+     "from": "14:03:15",
+     "to": "14:04:32",
+     "held_samples": 0,
+     "held_seconds": 0,
+     "host_available_min": 928571392,
+     "host_used_outside_bounded_max": 553009152,
+     "containers": {
+      "leaveimpact-app-1": {
+       "absent_samples": 0,
+       "current_max": 169320448,
+       "anon_max": 139137024,
+       "threads_max": 2,
+       "cpu_rate": {
+        "mean": 0.0704,
+        "step_max": 0.2241,
+        "seconds": 77.1,
+        "usage_usec": 5430948,
+        "wall_seconds": 77.096
+       },
+       "cpu_rate_held": null
+      },
+      "leaveimpact-postgres-1": {
+       "absent_samples": 0,
+       "current_max": 105472000,
+       "anon_max": 8212480,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.0332,
+        "step_max": 0.0602,
+        "seconds": 77.1,
+        "usage_usec": 2562275,
+        "wall_seconds": 77.096
+       },
+       "cpu_rate_held": null
+      },
+      "leaveimpact-worker-1": {
+       "absent_samples": 0,
+       "current_max": 186658816,
+       "anon_max": 161779712,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.0482,
+        "step_max": 0.1803,
+        "seconds": 77.1,
+        "usage_usec": 3717192,
+        "wall_seconds": 77.096
+       },
+       "cpu_rate_held": null
+      },
+      "proxy-caddy-1": {
+       "absent_samples": 0,
+       "current_max": 22331392,
+       "anon_max": 12218368,
+       "threads_max": 9,
+       "cpu_rate": {
+        "mean": 0.0005,
+        "step_max": 0.0077,
+        "seconds": 77.1,
+        "usage_usec": 36766,
+        "wall_seconds": 77.096
+       },
+       "cpu_rate_held": null
+      }
+     }
+    },
+    "runC:resumed": {
+     "samples": 3,
+     "from": "14:04:34",
+     "to": "14:04:38",
+     "held_samples": 0,
+     "held_seconds": 0,
+     "host_available_min": 848719872,
+     "host_used_outside_bounded_max": 534872064,
+     "containers": {
+      "leaveimpact-app-1": {
+       "absent_samples": 0,
+       "current_max": 159084544,
+       "anon_max": 129130496,
+       "threads_max": 2,
+       "cpu_rate": {
+        "mean": 0.0036,
+        "step_max": 0.0058,
+        "seconds": 4.3,
+        "usage_usec": 15421,
+        "wall_seconds": 4.284
+       },
+       "cpu_rate_held": null
+      },
+      "leaveimpact-postgres-1": {
+       "absent_samples": 0,
+       "current_max": 105480192,
+       "anon_max": 8204288,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.0172,
+        "step_max": 0.0187,
+        "seconds": 4.3,
+        "usage_usec": 73826,
+        "wall_seconds": 4.284
+       },
+       "cpu_rate_held": null
+      },
+      "leaveimpact-worker-1": {
+       "absent_samples": 0,
+       "current_max": 301875200,
+       "anon_max": 272482304,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.7996,
+        "step_max": 0.9751,
+        "seconds": 4.3,
+        "usage_usec": 3425638,
+        "wall_seconds": 4.284
+       },
+       "cpu_rate_held": null
+      },
+      "proxy-caddy-1": {
+       "absent_samples": 0,
+       "current_max": 22360064,
+       "anon_max": 12300288,
+       "threads_max": 9,
+       "cpu_rate": {
+        "mean": 0.0002,
+        "step_max": 0.0004,
+        "seconds": 4.3,
+        "usage_usec": 808,
+        "wall_seconds": 4.284
+       },
+       "cpu_rate_held": null
+      }
+     }
+    }
+   },
+   "counters": {
+    "leaveimpact-app-1": {
+     "oom_kill_first": 0,
+     "oom_kill_last": 0,
+     "restarts_first": 0,
+     "restarts_last": 0
+    },
+    "leaveimpact-postgres-1": {
+     "oom_kill_first": 0,
+     "oom_kill_last": 0,
+     "restarts_first": 0,
+     "restarts_last": 0
+    },
+    "leaveimpact-worker-1": {
+     "oom_kill_first": 0,
+     "oom_kill_last": 0,
+     "restarts_first": 0,
+     "restarts_last": 0
+    },
+    "proxy-caddy-1": {
+     "oom_kill_first": 0,
+     "oom_kill_last": 0,
+     "restarts_first": 0,
+     "restarts_last": 0
+    }
+   }
+  }
+ },
+ "subscriber_load": {
+  "forecast_above_idle": 0.14,
+  "budget_above_idle": 0.2,
+  "coverage_floor_seconds": 20.0,
+  "phases": {
+   "runA:active": {
+    "samples": "runs",
+    "held_seconds": 23.7,
+    "sufficient": true,
+    "app_rate_held": 0.1823,
+    "app_rate_all_pairs": 0.1823,
+    "idle_rate": 0.041,
+    "above_idle": 0.1413,
+    "within_budget": true,
+    "within_forecast": false
+   },
+   "runA:awaiting": {
+    "samples": "runs",
+    "held_seconds": 40.9,
+    "sufficient": true,
+    "app_rate_held": 0.1014,
+    "app_rate_all_pairs": 0.1251,
+    "idle_rate": 0.041,
+    "above_idle": 0.0604,
+    "within_budget": true,
+    "within_forecast": true
+   },
+   "runB:active": {
+    "samples": "runs",
+    "held_seconds": 23.7,
+    "sufficient": true,
+    "app_rate_held": 0.1621,
+    "app_rate_all_pairs": 0.1621,
+    "idle_rate": 0.041,
+    "above_idle": 0.1211,
+    "within_budget": true,
+    "within_forecast": true
+   },
+   "runB:awaiting": {
+    "samples": "runs",
+    "held_seconds": 40.8,
+    "sufficient": true,
+    "app_rate_held": 0.1103,
+    "app_rate_all_pairs": 0.1401,
+    "idle_rate": 0.041,
+    "above_idle": 0.0693,
+    "within_budget": true,
+    "within_forecast": true
+   }
+  }
+ },
+ "pooled_active": {
+  "runs": {
+   "runA": {
+    "held_seconds": 23.7,
+    "app_rate_held": 0.1823,
+    "reaches_run_floor": true
+   },
+   "runB": {
+    "held_seconds": 23.7,
+    "app_rate_held": 0.1621,
+    "reaches_run_floor": true
+   }
+  },
+  "run_floor_seconds": 10.0,
+  "coverage_floor_seconds": 20.0,
+  "held_seconds": 47.4,
+  "app_rate_held": 0.1722,
+  "idle_rate": 0.041,
+  "idle_seconds": 372.4,
+  "sufficient": true,
+  "above_idle": 0.1312,
+  "within_budget": true,
+  "within_forecast": true
+ },
+ "worker_rule": {
+  "worker_peak_current_bytes": 306569216,
+  "worker_limit_bytes": 469762048,
+  "worker_mem_limit": "448m",
+  "idle_baseline_outside_bounded_bytes": 611573760,
+  "host_total_bytes": 1930240000,
+  "absences": [],
+  "qualifies": true,
+  "app_peak_here_bytes": 170827776,
+  "app_committed_peak_bytes": 244527104,
+  "app_passes_committed_peak": false,
+  "app_committed_limit_bytes": 402653184,
+  "app_limit_bytes": 402653184,
+  "app_mem_limit": "384m",
+  "postgres_peak_here_bytes": 110993408,
+  "postgres_committed_peak_bytes": 104230912,
+  "postgres_passes_committed_peak": true,
+  "postgres_committed_limit_bytes": 201326592,
+  "postgres_limit_bytes": 201326592,
+  "postgres_mem_limit": "192m",
+  "limits_sum_bytes": 1073741824,
+  "budget_bytes": 1318666240,
+  "fits": true,
+  "spare_bytes": 244924416,
+  "counters_moved": [],
+  "accepted": true
+ }
+}

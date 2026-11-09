@@ -54,9 +54,11 @@ and close, the events statement itself unmeasured until the live path's acceptan
 6.5 to 11.1 ms; and an event folded 1.8 to 5.2 ms. So a subscription pays the whole fold
 once and then the new events, about 0.02 s of CPU a second at a run's worst rates (1.3 events a
 second), and eight subscriptions on one open attempt about 0.14 s of the one interpreter's
-second, under the step's budget of a fifth; that forecast is checked on the first public
-attempt at the live path's acceptance step, where the shared fold is the move if it
-misses. Each statement runs under the store's three-second bound and the connect under its
+second, under the step's budget of a fifth; that forecast was checked on production
+(``probes/live-acceptance``): 0.062 and 0.078 above idle in the waits at the live path's
+acceptance, and 0.131 in the active phase over two pooled runs at the final smoke, so
+the shared fold was not taken.
+Each statement runs under the store's three-second bound and the connect under its
 own, so a wedged tick can take twelve seconds, under the heartbeat interval. The pacing
 constants are the process's; the subscription bound was set by the instance's memory
 baseline (the demo milestone's step 10, ``probes/memory-baseline``): memory did not move

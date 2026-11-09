@@ -1,0 +1,9 @@
+{
+ "label": "runC",
+ "source": "timeline-runC.txt, the attempt's timeline read through the hostname after its close; the run was started and approved from a phone on mobile data and no subscriber probe ran on it, so its boundaries are entered by hand from the log's recorded instants on that page",
+ "attempt": "live-7ae10722aed3e06410f9582fcdadbf23",
+ "admitted": "2026-11-09T14:02:42.133572+00:00",
+ "approval_requested": "2026-11-09T14:03:14.663332+00:00",
+ "approved": "2026-11-09T14:04:34.317611+00:00",
+ "closed": "2026-11-09T14:04:39.518933+00:00"
+}

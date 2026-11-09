@@ -1,0 +1,282 @@
+read 2026-11-09T14:05:30Z through the hostname with a browser Accept, status 200: the report page of run C after its close
+This demo serves a development world, one the investigator was built against. The results page's numbers come from a withheld world, generated after the procedure was frozen.
+All replays · Audit trail · Timeline
+live-7ae10722aed3e06410f9582fcdadbf23
+Scenario scenario_009
+Scenario date 2026-05-13 (Europe/Istanbul), the date the rules apply
+Ending completed
+System agent (tool_loop_then_finalization)
+Run admitted 2026-11-09T14:02:42.133572+00:00 · closed 2026-11-09T14:04:39.518933+00:00
+World 7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4
+Published 2026-11-09
+The run completed.
+The plan was approved by a person.
+12 completed reads returned 76 records from calendar, corpus, frappe, jira.
+The leave
+Yusuf Fernandes (emp_009) is on annual leave from 2026-05-17 to 2026-05-18 (2 days, approved).
+frappe · leave leave_027
+id leave_027
+employee_id emp_009
+start 2026-05-17
+end 2026-05-18
+kind annual
+status approved
+Recorded in the log at 2026-11-09T14:02:47.238752+00:00, position 3 , position 5 .
+Impacts
+A meeting the leave affects: Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Candidates
+Arjun Schmidt (emp_001) cannot cover Platform: customer escalation sync (part two) (event_014): is not available.
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+calendar · event Budget review with finance (event_015)
+id event_015
+title Budget review with finance
+start 2026-05-17T12:30:00+00:00
+end 2026-05-17T13:30:00+00:00
+attendee_ids emp_001
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 .
+Jonas Sharma (emp_002) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Arjun Byrne (emp_003) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Sofia Haddad (emp_004) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Tomasz Novak (emp_005) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Felix Haddad (emp_006) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Elif Patel (emp_007) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Omar Moreau (emp_008) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Yusuf Fernandes (emp_009) cannot cover Platform: customer escalation sync (part two) (event_014): is not available.
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+frappe · leave leave_027
+id leave_027
+employee_id emp_009
+start 2026-05-17
+end 2026-05-18
+kind annual
+status approved
+Recorded in the log at 2026-11-09T14:02:47.238752+00:00, position 3 , position 5 .
+Felix Jansen (emp_010) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Aylin Sharma (emp_011) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Selin Moreau (emp_012) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Nadia Moreau (emp_013) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Arjun Demir (emp_014) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Ravi Muller (emp_015) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Deniz Kowalski (emp_016) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Priya Sharma (emp_017) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Elif Kowalski (emp_018) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Alice Fernandes (emp_019) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Aylin Rossi (emp_020) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Mateus Yilmaz (emp_021) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Marta Demir (emp_022) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Yusuf Kaya (emp_023) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Emre Nakamura (emp_024) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Arjun Moreau (emp_025) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Arjun Okafor (emp_026) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Noor Novak (emp_027) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+Liam Okafor (emp_028) can cover Platform: customer escalation sync (part two) (event_014).
+calendar · event Platform: customer escalation sync (part two) (event_014)
+id event_014
+title Platform: customer escalation sync (part two)
+start 2026-05-17T12:00:00+00:00
+end 2026-05-17T13:00:00+00:00
+attendee_ids emp_009, emp_011
+Recorded in the log at 2026-11-09T14:02:58.752313+00:00, position 8 , position 19 .
+The plan
+Assign Jonas Sharma (emp_002) to Platform: customer escalation sync (part two) (event_014).
+Constraints that apply
+The run reported no constraint.
+Stated unknowns
+The run reported no unknown.
+Source conflicts
+The run reported no conflict.
+Leave Impact Agent · revision 266422f7b6732bec47771e19f17f6095480dad1e

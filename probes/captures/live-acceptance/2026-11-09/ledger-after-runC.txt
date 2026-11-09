@@ -1,0 +1,18 @@
+read 2026-11-09T14:05:31Z through the hostname with a browser Accept, status 200: the ledger page after run C settled
+This demo serves a development world, one the investigator was built against. The results page's numbers come from a withheld world, generated after the procedure was frozen.
+Leave Impact Agent · Replays · Results
+The demo's ledger
+Every live run reserves its money against one ledger before it starts and is charged what its calls cost when it closes; an operator sets the ledger's wall by hand, and a run the wall cannot hold is refused. This page states the ledger as it stands, every entry kind accounted for, and no run is named.
+Ledger ledger-visitors, revision 13
+Threshold in force $8.0000, set 2026-10-30 18:19 UTC, 12 entries since
+Committed total $0.4088
+Room $7.5912
+Open reservations $0.0000 over 0 open runs
+Charged $0.4088 over 6 settled runs: $0.4088 known consumption plus $0.0000 retained liability
+Imported spend none; no imported spend is recorded on this ledger
+Refusals 0
+Today's live runs 3 of 5 started; 2 remain, the day turns at midnight UTC
+Reservation a run holds $2.1674 (the latest admission)
+Charge forecast $0.0681 a run, the mean over 6 settled runs (this ledger's settled runs); conservative, since a kept reservation sits inside a charge
+The committed total is the open reservations plus the known consumption plus the retained liability plus the imported spend; "charged" is the known consumption plus the retained liability, a kept reservation being charged whole until its cost is known. The page checks that identity before it renders. The retained liability is derived from each settled run's log and held in no table. Live runs are on.
+Leave Impact Agent · revision 266422f7b6732bec47771e19f17f6095480dad1e
