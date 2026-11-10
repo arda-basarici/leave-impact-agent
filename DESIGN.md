@@ -37,7 +37,7 @@ flowchart LR
 | Model-written prose | accepted only when it carries every required fact and none its brief does not allow, under three automated guards, one a second model family | a lexicon check: "led the Kafka migration" and "has never worked with Kafka" pass the same vocabulary test | [Truth before prose](#truth-before-prose) |
 | Failed generations | discarded and retried, never patched | patching: a patched artifact's provenance is model output plus a fix plus perhaps a human edit | [Truth before prose](#truth-before-prose) |
 | The answer key | in a bucket the application's role has no capability over, probed on every deploy | a generator role the instance could assume: a role the instance may assume is a role the application can obtain | [Sealing and the audit](#sealing-and-the-audit) |
-| The model's job | it states quoted facts, and shared rules conclude | the model writing the report: it was wrong in some row of every scenario tried | [Keeping the benchmark out of the product](#keeping-the-benchmark-out-of-the-product) |
+| The model's job | it states quoted facts, and shared rules conclude | the model writing the report: 0 of 6 in a one-day probe on a throwaway world, a direction more than a result | [Keeping the benchmark out of the product](#keeping-the-benchmark-out-of-the-product) |
 | The tool surface | typed tools generated from read ports by a role-scoped registry | MCP: one in-process consumer of a small owned read surface gains nothing from a protocol | [Keeping the benchmark out of the product](#keeping-the-benchmark-out-of-the-product) |
 | The measurement | a committed registration, frozen before the measurement world existed, with one primary comparison | reading a tier or a secondary comparison as a win: no claim of success is made from them | [Keeping the benchmark out of the product](#keeping-the-benchmark-out-of-the-product) |
 | The agent loop | LangGraph inside the agent package, the event log as the authority and the checkpoint a cursor | a hand-rolled loop, which was the lean | [The deployment](#the-deployment-the-evidence-is-served-from) |
@@ -266,9 +266,12 @@ employees. Three constraints keep the construction honest:
 
 ### Time is world state, never the machine's clock
 
-Every run receives a `RunContext`: scenario id, world (seed) version, a canonical `now`
+Every run receives a `RunContext`: scenario id, world version, a canonical `now`
 as an instant with a reference timezone. That is the reproducibility boundary: same
-scenario, same world version, same `now` → same evidence, on any machine, months later.
+scenario, same world version, same `now` → same evidence, on any machine, months later,
+for as long as the vendor systems hold the projection the validator approved. A recorded
+run does not depend on that: its export holds its own reads, and the evaluator replays
+them without re-reading a vendor.
 No core, adapter or evaluator code reads the wall clock for world semantics, and a test
 enforces it.
 
@@ -876,9 +879,14 @@ carrier (a ticket comment or a document section) and a verbatim quote; the rules
 every claim from the structured reads and the stated facts, and no model writes a
 verdict.
 
-A model asked to write the whole report was wrong in some row of every scenario tried,
-and the same model stating quoted facts reached the rules' ceiling (`REPORT_NOTES.md`,
-the one-day probe of 2026-10-04, a development result on a throwaway world).
+A one-day probe on a throwaway world ran both shapes before any harness code existed
+(`REPORT_NOTES.md`, 2026-10-04, a development result). A model asked to write the whole
+report scored 0 of 6, most answers near misses of one to three wrong rows out of thirty
+or more. The same model stating quoted facts was correct whole on 26 of 30 scenarios on
+the first prompt and 30 of 30 on the second, wording written after the misses were seen,
+so it is tuned on that world. The contrast is partly circular: the facts arm concludes
+with the same rules the oracle runs, and the authoring arm was never told the rules.
+Until a fair version runs the 0 of 6 is a direction.
 
 Only a positive assertion is stated, since the rules derive a negative from a closed
 evidence domain and a stated one would be a second, unverifiable route to it. A fact is
@@ -951,7 +959,9 @@ governs an impact or whether any does.
 The outages that can be graded are therefore the tracker's and the calendar's. Grading
 the condition anyway was rejected as a number no system could score on.
 
-> **Limit.** At the freeze the outage cells were cut from the registered measurement.
+> **Limit.** At the freeze the outage matrix was cut from the registered measurement
+> for time and cost, and only full context's four outage cells remain registered,
+> decided not run.
 > The behaviour under each outage is reported as development evidence, one demonstration
 > per condition on one scenario.
 
@@ -1062,7 +1072,10 @@ holds on the measurement world is unmeasured.
 The padded level was chosen by a rule stated before the runs: of three candidate
 paddings, full-context requests of about 40,000, 70,000 and 90,000 tokens, the smallest
 at which full context is not correct whole (the first registered check, defined below)
-on at least one calibration scenario, else the largest, never enlarged afterwards. The rule gave the first candidate: 160 filler
+on at least one calibration scenario, else the largest, never enlarged afterwards. The
+rule as written, "not correct whole on every calibration scenario", reads two ways, and
+under one of them no candidate can qualify; the freeze took the reading the rule's
+purpose supports, "at least one" (`probes/FINDINGS.md`). The rule gave the first candidate: 160 filler
 documents, the request measured at 42,390 to 42,642 input tokens over the six scenarios,
 the base level's at 10,359 to 10,611.
 
@@ -1435,6 +1448,11 @@ found a class those fakes have no model of: a run directory root-only against th
 image's unprivileged user, a guard refusing a dispatch ahead of its deploy, a run log
 never bootstrapped, and publishers composing their stores from the wrong names.
 
+The cache job at each deploy demotes every served version the listing holds and the
+serving rule declines, deleting no row, and readmits a flipped version the rule serves
+again, so a run naming a declined version is refused by the serving check and not by
+chance.
+
 ### The investigator's runtime policy keeps the fault triad's meanings
 
 A missing record is evidence; the first unreachable source marks that source unreachable
@@ -1549,7 +1567,7 @@ is recorded: a day of admissions and spend.
 > Two things are recorded short of the entry's wording. The exit was amended to the URL
 > with the disclosure crawl held on 124 pages, the stranger test skipped by ruling. And
 > one criterion of the final smoke was not met as written, the delivery of the active
-> phase's frames at a p95 under 2 s reading 2.00 and 2.09 s on a measure whose clock
+> phase's frames at a p95 under 2 s reading 2.0001 and 2.09 s on a measure whose clock
 > bound is 1.3 to 1.5 s. The figures are in `probes/FINDINGS.md` (`replay-set`,
 > `backup-restore-drill`, `public-switch`, `live-acceptance`, `final-smoke`).
 
