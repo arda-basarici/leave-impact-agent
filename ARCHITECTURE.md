@@ -2,10 +2,10 @@
 
 How it's built and why that structure: a snapshot of the tree as it stands, edited in
 place. Decisions and their rationale live in DESIGN (cited here by name); the pitch in
-README. How each part came to its shape is in git and in DESIGN's as-built passages,
-not here.
+README. How each part came to its shape is in git and in the as-built passages of the
+design record, DESIGN_RECORD, not here.
 
-*Snapshot at the demo milestone's close · last updated 2026-11-09 · eleven packages
+*Snapshot at the demo milestone's close · last updated 2026-11-10 · eleven packages
 under `src/leaveimpact`.*
 
 ## Design shape

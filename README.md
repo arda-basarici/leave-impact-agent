@@ -133,8 +133,9 @@ them.
 
 Going deeper from here: **[ARCHITECTURE](ARCHITECTURE.md)** is the five-minute
 read (the package ranks, how a world is built, how a run moves), and
-**[DESIGN](DESIGN.md)** is the long one, the decisions with the alternatives
-that lost.
+**[DESIGN](DESIGN.md)** is the longer one, the decisions with the alternatives
+that lost. Behind it, [DESIGN_RECORD](DESIGN_RECORD.md) keeps every decision as
+it was recorded.
 
 ## The build, milestone by milestone
 
@@ -298,6 +299,7 @@ acted on.
 [the live demo](https://leave-agent.ardabasarici.dev) ·
 [the report](report/where-the-single-call-stops.pdf) ·
 [DESIGN](DESIGN.md), the decisions and their reasoning ·
+[DESIGN_RECORD](DESIGN_RECORD.md), the complete dated record ·
 [ARCHITECTURE](ARCHITECTURE.md), the tree as it stands ·
 [AUDIT_METHODOLOGY](AUDIT_METHODOLOGY.md), what "golden" means here ·
 [FINDINGS](probes/FINDINGS.md), every probe's outcome ·

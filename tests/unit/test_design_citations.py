@@ -10,11 +10,12 @@ tracked file.
 
 What is held: the quoted forms. ``DESIGN, "X"``, ``DESIGN: "X"``, ``DESIGN's "X"``, a
 short lower-case lead-in between the two (``DESIGN, the closed-world rule in "X"``), and
-a further ``and "Y"`` after any of them. A citation resolves when its words are a title's words, or
-at least three of them in a row inside one title, so a long decision name may be cited by
-its opening clause. The titles are DESIGN's section and subsection headings and every
-phrase it sets in bold. Quotation marks, backticks and case are ignored on both sides,
-since a title that quotes a word cannot be quoted whole inside a docstring's own quotes.
+a further ``and "Y"`` after any of them. A citation resolves when its words are a title's
+words, or at least three of them in a row inside one title, so a long decision name may be
+cited by its opening clause. The titles are the section and subsection headings, and every
+phrase set in bold, of DESIGN and of the frozen record behind it, DESIGN_RECORD. Quotation
+marks, backticks and case are ignored on both sides, since a title that quotes a word
+cannot be quoted whole inside a docstring's own quotes.
 
 What is not held: a reference with no quoted title ("the import law in DESIGN"), which no
 pattern can tell from prose, and whether the cited passage still says what the citing
@@ -30,11 +31,12 @@ from pathlib import Path
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 
-DESIGN_DOCUMENTS: tuple[str, ...] = ("DESIGN_RECORD.md",)
-"""The documents a citation of DESIGN may resolve in: the frozen design record, which
-holds every decision under its own heading."""
+DESIGN_DOCUMENTS: tuple[str, ...] = ("DESIGN.md", "DESIGN_RECORD.md")
+"""The documents a citation of DESIGN may resolve in: the current design, and the frozen
+design record, which holds every decision under its own heading."""
 
 UNSCANNED: dict[str, str] = {
+    "DESIGN.md": "the cited document itself",
     "DESIGN_RECORD.md": "the cited record itself, frozen",
     "REPORT_NOTES.md": "append-only, each entry true on its date",
     "probes/FINDINGS.md": "append-only, each entry true on its date",
