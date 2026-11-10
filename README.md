@@ -21,6 +21,11 @@ yourself?**
 
 </div>
 
+**An LLM agent built so that what it says can be checked and what it can cost is
+bounded.** In a registered comparison it answered 24 of 30 scenarios correctly
+in full where one call shown every document answered 14, at the larger of two
+corpus sizes. At the smaller size the single call scored higher, 30 to 24.
+
 An LLM agent reads an organization's HR system, issue tracker, calendar and
 documents, works out which deadlines and meetings a leave affects and who can
 cover them, and drafts a coverage plan for a person to approve. Each fact the
@@ -43,6 +48,21 @@ on AWS.*
 > or start a live run and decide on the plan it drafts. Live runs are capped at
 > five a day, and [the ledger](https://leave-agent.ardabasarici.dev/ledger)
 > shows what they have cost.
+
+## One investigation
+
+Noor Novak is on approved annual leave from 2026-03-02 to 2026-03-05. A ticket
+Noor owns, the signing-key rotation for a new tenant on the Payments API, is
+due on 2026-03-04, so the leave affects that deadline. The run assesses all 28
+people as cover. Twenty-five cannot take it because they are not on the
+component, whose member list in Jira names three people, and Noor is not
+available. Two members can, and the plan assigns the ticket to one of them,
+Felix Haddad. A planning meeting on the leave's last day gets its own
+assignment. [The replay](https://leave-agent.ardabasarici.dev/replays/scenario-004)
+shows the HR, Jira or calendar record behind each fact and assessment, and the
+plan built on them. This scenario needs records only. In most others the
+deciding fact sits in prose, a ticket comment or a document section, that the
+model has to quote, and some turn on a stale source or a missing fact.
 
 ## The result
 
@@ -79,6 +99,14 @@ while the investigator stays at 24. The registered primary comparison is that
 padded difference: 33 percentage points of scenarios, with an interval of 20 to
 47 at 95 percent, paired by scenario.
 
+Cost moves the same way. At the base level the full-context call is both more
+accurate and cheaper, about $0.027 of model spend a run against the
+investigator's $0.074. At the padded level the investigator has the better
+score and the lower cost, $0.073 a run against $0.085. The registered
+comparison is on the score; the costs are the same runs' recorded model spend.
+Here the loop earned its extra calls only at the level where the single call's
+answer no longer fit its output allowance.
+
 Every system ran under the same output maximum. The one-call reader is asked to
 list every fact in everything it was shown, so what it must write grows with
 the corpus. The investigator lists the facts its searches returned.
@@ -94,7 +122,10 @@ level was added, and its size was fixed before the measurement world existed.
 > variation. The padded size was chosen as the smallest candidate at which the
 > single call failed on an earlier world used for development. The stop is a
 > limit on what a call may write, and no evidence of a limit on what the model
-> can read. A one-call reader with a larger output allowance, or one that wrote
+> can read at this size: on a throwaway world, a one-call reader asked for three
+> kinds of prose fact at about 40,000 input tokens matched 134 of 140 planted
+> facts over ten calls, and at about 108,000 it fell to 93 of 140. A one-call
+> reader with a larger output allowance, or one that wrote
 > its answer over several calls, would face a different comparison. The two
 > kinds of system were not tuned alike: the investigator's prompts went through
 > fifteen development rounds and the one-call readers' instruction through four.
@@ -137,9 +168,11 @@ them.
 </div>
 
 Going deeper from here: **[ARCHITECTURE](ARCHITECTURE.md)** is the tree as it
-stands (how a run moves, the package ranks, how a world is built), and
+stands (how a run moves, the package ranks, how a world is built), with five
+[structural stories](ARCHITECTURE.md#structural-stories), among them recovery
+from the event log, the supervised child process and the admission lock.
 **[DESIGN](DESIGN.md)** is the longer one, the decisions with the alternatives
-that lost. Behind it, [DESIGN_RECORD](DESIGN_RECORD.md) keeps every decision as
+that lost, [one page of them first](DESIGN.md#the-design-in-one-page). Behind it, [DESIGN_RECORD](DESIGN_RECORD.md) keeps every decision as
 it was recorded.
 
 ## The build, milestone by milestone
@@ -205,7 +238,8 @@ and have not been reconciled against the provider's bill.
 - **Deploys hold no stored cloud keys.** After a required review the deploy job
   assumes a role through GitHub's OIDC trust, and that role may send commands
   only to instances carrying the application's tag, through Systems Manager.
-- **Two things deliberately not built.** MCP was weighed and not chosen: one
+- **Two things deliberately not built.** MCP was
+  [weighed and not chosen](DESIGN.md#a-tool-is-one-typed-specification-over-one-read-port-method-constructed-by-a-declared-registry-mcp-was-weighed-and-not-chosen): one
   in-process consumer of a small owned read surface gains nothing from a
   protocol, and the question reopens with an external client that needs one. A
   vector retrieval arm was registered as a supporting comparison and decided
@@ -264,20 +298,11 @@ demo needs no workflow.
 
 ## Layout
 
-The package is `src/leaveimpact/`, eleven subpackages in five ranks. A module
-never imports a higher rank.
-
-| rank | packages | responsibility |
-|---|---|---|
-| 0 | `core` | the domain and its pure rules; imports nothing else in the package |
-| 1 | `world` · `results` | the benchmark (organization, scenarios, truth, sealed artifacts) · the public results schema |
-| 2 | `adapters` | one external boundary each: Frappe HR, Jira, Google Calendar, the document corpus, the models, the object store |
-| 3 | `generator` · `validator` · `evaluator` · `cache` · `agent` | build a world · check what was written · grade a run · fill the corpus cache on the instance · the investigator, its three baselines and the run log |
-| 4 | `launch` · `app` | admissions for an operator's run · the demo site and its worker |
-
-A unit test holds the ranks and the edges denied on top of them.
-[ARCHITECTURE](ARCHITECTURE.md) lists what that test holds and what rests on
-review. Beside the package: `preregistration/` (the registration and the price
+The package is `src/leaveimpact/`, eleven subpackages in five ranks, from the
+pure domain (`core`) up to the demo site (`app`). A module never imports a
+higher rank. A unit test holds the ranks and the edges denied on top of them.
+[ARCHITECTURE](ARCHITECTURE.md#design-shape) has the rank table and lists what
+that test holds and what rests on review. Beside the package: `preregistration/` (the registration and the price
 table), `probes/` (each probe and its outcome), `report/` (the report and its
 build), `docs/golden-world/` (the golden world, released with its answer keys)
 and `deploy/` (the instance's entrypoint and runbook). The host itself
@@ -286,8 +311,7 @@ and `deploy/` (the instance's entrypoint and runbook). The host itself
 
 ## What it demonstrates
 
-An LLM agent built so that what it says can be checked and what it can cost is
-bounded. Conclusions come from deterministic rules over facts the model quotes.
+Conclusions come from deterministic rules over facts the model quotes.
 The agent is graded against an answer key generated with its world, in a
 comparison frozen before the data existed. Spend is capped by a ledger, the
 answer key is sealed from the application, and a plan is a draft until it is
