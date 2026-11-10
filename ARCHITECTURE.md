@@ -10,11 +10,7 @@ under `src/leaveimpact`.*
 
 An LLM agent reads an organization's HR system, issue tracker, calendar and documents,
 works out which deadlines and meetings a leave affects and who can cover them, and
-drafts a coverage plan for a person to approve. An agent's answer about a leave can
-only be graded if the right answer is known, so the organization is generated together
-with its answer key and the key is sealed where the agent cannot reach it. The model
-never concludes: it reports facts with the text they came from, and deterministic rules
-draw every conclusion, which is also what makes the grading exact.
+drafts a coverage plan for a person to approve.
 
 [The life of a run](#the-life-of-a-run) · [Design shape](#design-shape) ·
 [The life of a world](#the-life-of-a-world) · [Where state lives](#where-state-lives) ·
@@ -35,7 +31,7 @@ flowchart TD
     ADM["admission, one transaction<br/>the attempt row · the first event · a reservation against the shared ledger's threshold"]
     ADM --> CL["the claim: one execution slot<br/>the worker service, or the operator's lifecycle"]
     CL --> WO["one work order, the same for both<br/>prefetch → prepare → model ⇄ tools → approval → terminal"]
-    WO --> WAIT["the plan waits for a human<br/>POST /decide · the operator's deliver-approval · policy for an evaluation run · the sweeper past a deadline"]
+    WO --> WAIT["the plan waits for a human<br/>a visitor's POST to the replay's decision route · the operator's deliver-approval · the automatic policy · the sweeper past a deadline"]
     WAIT --> END["the closing<br/>an ending from the closed vocabulary · the settlement on the ledger"]
     END --> PAGES["the pages<br/>report · audit trail · narration · ledger"]
     END --> PUB[("publication, created once<br/>the export · the harness inventory")]
@@ -52,7 +48,7 @@ What happens inside the work order, and where each part lives:
 | **read** | the model reads in turns, through tools scoped to its role and a full-text search over document sections | `core.tools`: the fourteen read tools as declarations, the roles, validation, the surface digest · `agent.execution`: the one path for a declared tool call |
 | **state facts** | a loop turn shows the model the role's read tools and the fact tool; the model reads, and may state facts about what earlier turns returned. Then one finalization call, requested and never guaranteed, the fact tool alone and forced by name, so the last turn can only state facts | `agent.turns` · `core`'s `stated`, `anchors`, `binding`, `admission`, `stated_view`: what a model says a text asserts, and the gates that decide whether it enters the view |
 | **rules conclude** | deterministic rules compose every claim and the coverage plan from the facts that pass the checks | `agent.composer`: from a run's reads and the admitted statements to claims |
-| **approval** | a run with a human approver waits: a visitor's POST /decide, or the operator's `deliver-approval`; an evaluation run is approved by policy | `app.decide` · the `agent` command `deliver-approval` · the approval policy in `agent.worker` |
+| **approval** | a run with a human approver waits: a visitor's `POST /replays/{public_id}/decision`, or the operator's `deliver-approval`; under the automatic policy, the measurement convention, every requested payload is approved at once | `app.decide` · the `agent` command `deliver-approval` · the approval policy in `agent.worker` |
 | **every step** | an event the pure transition admitted, appended under the attempt row's lock, the graph's checkpoints beside it | `agent.log_events`: seventeen kinds, closed · `agent.log_transition`: the one function that says which event may follow, and the state it folds to · `agent.graph`: the six-node skeleton |
 | **every model call** | counted, authorized against the run's account, dispatched and attributed; nothing retries beneath a dispatch, so asking a call again is the harness's own decision, under the registered re-dispatch policy | `agent.graph` over `core`'s `run_account`, `call_decision`, `input_bound` and `attribution` · a run's reservation is the most its dispatches can cost under the caps (DESIGN, "A dispatch's worst case is written into its intent") |
 
@@ -83,8 +79,9 @@ What happens inside the work order, and where each part lives:
         │  transition admitted,
         │  appended under the attempt row's lock, the graph's checkpoints beside it
         ▼
-    the plan waits for a human: POST /decide (app.decide) approves or declines; an
-    evaluation run is approved by policy; the sweeper closes a wait past its deadline
+    the plan waits for a human: POST /replays/{public_id}/decision (app.decide) approves
+    or declines; an evaluation run is approved by policy; the sweeper closes a wait past
+    its deadline
         ▼
     the closing: an ending from the closed vocabulary, the settlement on the ledger
         ├──► the pages (app), every read through one admission: the report and the audit
@@ -691,7 +688,7 @@ together.
 - **No queue and no worker pool.** A job is one command per execution over the
   PostgreSQL log, and the demo runs one attempt at a time in one execution slot. The
   event log and its checkpoints are the job seam a different execution shape would
-  attach to (DESIGN, "Ephemeral compute on AWS").
+  attach to (DESIGN_RECORD, "Ephemeral compute on AWS").
 - **No grading on the page.** The surface may not import the evaluator and cannot read
   the truth bucket, so a replay shows what the run claimed and read, and the measured
   results come from the committed file.
