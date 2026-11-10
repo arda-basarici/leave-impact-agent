@@ -20,12 +20,16 @@ never does. The organization is generated into real systems by a generator that 
 emits the sealed answer key, so every claim the agent makes can be graded against
 constructed truth.
 
-**The success criterion.** A valid answer is a report whose facts trace to org data,
+### The success criterion
+
+A valid answer is a report whose facts trace to org data,
 whose plan satisfies the scenario's planted constraints, and whose unknowns are
 stated rather than invented. It is measured across an evaluation spine by difficulty
 tier, and served from a deployment that exists from the first milestone on.
 
-**The investigator milestone's outcome (2026-10-17).** The 240 registered runs on
+### The investigator milestone's outcome (2026-10-17)
+
+The 240 registered runs on
 the measurement world closed without incident at $9.96 of model spend, and the one
 reported evaluation holds the primary comparison: the investigator correct whole on
 24 of 30 scenarios at the padded corpus level against full context's 14, the
@@ -34,7 +38,9 @@ whole corpus, full context is 30 of 30 and the investigator 24. The figures are
 the `phase-c` findings entry's, the narrative is the deployment section's "The
 reported runs ran as registered", and the demo milestone builds on them.
 
-**The demo milestone's outcome (2026-11-09).** The golden world's investigations are
+### The demo milestone's outcome (2026-11-09)
+
+The golden world's investigations are
 public at the agent's hostname: thirty replays of the registered investigator, each
 with its report, its evidence, its audit trail and its narration timeline, the
 investigator milestone's results page beside them, and capped live runs a visitor
@@ -51,7 +57,9 @@ clock bound is 1.3 to 1.5 s. The figures are the `replay-set`, `backup-restore-d
 is the deployment section's demo passages, and the conversation milestone builds on
 them.
 
-**Probes preceded the remaining design.** The fatal unknowns (Frappe standing at its
+### Probes preceded the remaining design
+
+The fatal unknowns (Frappe standing at its
 real footprint, Frappe's REST surface including its `leave_approver` wart, Jira,
 Google Calendar, the generator's seed spike) and the two deployment floors (the
 instance under Terraform, the OIDC deploy) were probed before anything was designed
@@ -67,8 +75,9 @@ the open-questions section at the end holds the tombstones.
 
 ## What a valid answer is
 
-**The report and the key speak one typed vocabulary, frozen at the world
-milestone.** Everything downstream grades on it and the generator emits truth in the
+### The report and the key speak one typed vocabulary, frozen at the world milestone
+
+Everything downstream grades on it and the generator emits truth in the
 same words, so the types, their grading keys and the four semantic rules below are
 lasting; field names and enum members can still grow. Six claim types:
 
@@ -101,7 +110,9 @@ those), `evidence` (that is provenance), `risk` (an impact already is one),
 `reasoning` (report layer, not benchmark ontology); a `dependency` impact subtype
 waits for a scenario class that needs it.
 
-**A constraint's rule is its clause.** `clause_id` is the key, so a constraint the
+### A constraint's rule is its clause
+
+`clause_id` is the key, so a constraint the
 agent cannot trace to a clause cannot be expressed: the grounding rule made a type.
 Clause-backed requirements become constraint claims; deterministic domain rules (the
 cover may not itself be on leave) constrain validity inside the viability rule
@@ -112,7 +123,9 @@ leave: a run investigates one leave, but the truth manifest holds every scenario
 impacts side by side, and an impact's identity is world-wide, "this leave affects
 this artifact".
 
-**Grading identity is computed from a claim's fields, never from a claim id.** Claim
+### Grading identity is computed from a claim's fields, never from a claim id
+
+Claim
 ids are minted by whichever emitter wrote the report, so the same world fact carries
 different ids in the agent's report and in the answer key; the grading key
 identifies the fact across emitters, while `derived_from_claim_ids` links claims
@@ -134,6 +147,8 @@ paragraph below). The
 assessment's reason vocabulary is seeded from the criteria the viability rule names
 and closed by that rule.
 
+### Serialization is a stdlib codec in one module
+
 **Serialization is a stdlib codec in one module**, canonical and decoding through
 the same constructors the code path uses, so validation has one home; pydantic stays
 out of `core` and may enter at the agent's structured-output edge without the domain
@@ -141,7 +156,9 @@ knowing. Well-formedness (unique ids, resolvable references, an acyclic provenan
 graph, no two claims of one type on one grading key) is the codec's; the semantic
 chain checks belong to the rules.
 
-**The fact base is the rules' only world.** A fact is a subject, a predicate, a
+### The fact base is the rules' only world
+
+A fact is a subject, a predicate, a
 typed value, the evidence reference it was read from and the world date at which it
 became observable. A rule that has to reach back into an entity is not reading the
 fact base, which is why two rows joined the registry when rules needed them
@@ -152,7 +169,9 @@ holds. A requirement is stored as a typed value (a minimum count and a tuple of
 typed criteria), tagged so a sealed key survives a criterion added later. Country,
 timezone and grade have no predicate until a rule reads one.
 
-**Absence is a record of its own.** A `Gap` says the record was observed and this
+### Absence is a record of its own
+
+A `Gap` says the record was observed and this
 field held no value, planted where a scenario class plants a missing fact, and never
 a failed read: a failed read is the run condition, a separate `RunCondition` (the
 reachable sources) passed beside `RunContext`, because one scenario runs under
@@ -161,7 +180,9 @@ derivation of closure. The entity's `None`-versus-empty distinction maps to
 gap-versus-no-facts in `core`'s derivation, and a ticket without a due date is an
 observed negative, not a gap.
 
-**Closure answers in a fixed order and derives three of the five unknown reasons.** It
+### Closure answers in a fixed order and derives three of the five unknown reasons
+
+It
 reads the facts and gaps a view holds at `now` and asks the view what it observed. A
 positive fact → known true, with the facts that established it. Otherwise each place the
 answer could live is a *slice* of a source (one record, every record of a kind, the
@@ -184,7 +205,9 @@ asked about with what the view said, and citations and the accounting of reads a
 judged against that. `ambiguous` and `conflicting` are the agent's to emit, never the
 rule's, which keeps the rule's derivation and the agent's own uncertainty apart.
 
-**Viability evaluates four criteria through closure and combines them.** Any known
+### Viability evaluates four criteria through closure and combines them
+
+Any known
 false → non-viable with every failing reason; otherwise any unknown → unknown,
 deriving from one unknown claim per unresolved fact; otherwise viable. The criteria
 and their sources of truth: the required skill, from the clause-backed requirements
@@ -202,7 +225,9 @@ to ask about and is an unresolved need for everyone. The leaver fails through
 `on_leave` like anyone. A fifth criterion, `load`, was pruned and waits in Future
 work.
 
-**Criteria assess a candidate; the count judges the plan.** A requirement's count
+### Criteria assess a candidate; the count judges the plan
+
+A requirement's count
 never touches individual viability, so one viable person against a two-person clause
 is a viable candidate and an invalid plan. Three record-returning functions carry
 the plan side, because a defective plan is a graded outcome rather than an implicit
@@ -229,7 +254,9 @@ coverage check below: a conclusion of uncovered or unknown calls for everyone's
 assessment and the gap names who was left out, so `uncovered` is never inferred from
 a report that simply stopped assessing; no separate unconditional check runs.
 
-**Four semantic rules travel with the vocabulary.** *Viability is relational and
+### Four semantic rules travel with the vocabulary
+
+*Viability is relational and
 preference is never truth:* the key states whether `(need, employee)` is viable and
 why; "the best person" has no exact truth unless an optimization rule is declared,
 and none is, which keeps candidate grading from smuggling a reference plan back in.
@@ -278,7 +305,9 @@ declarations rather than stored: a tool-failure run against the same scenario
 legitimately turns a `non_viable` into an `unknown`, and that difference is the
 tool-failure metric.
 
-**Three coverage outcomes, and the unknowns chain.** `assign` is a positive
+### Three coverage outcomes, and the unknowns chain
+
+`assign` is a positive
 conclusion, `uncovered` a negative one (the evidence suffices and nobody qualifies,
 the vision's own "no qualified coverage exists for the migration" case), `unknown`
 an epistemic limit. Keeping the second apart from the third is what stops the
@@ -292,7 +321,9 @@ whose action is `unknown` rests on the assessments. Missing evidence → unknown
 word. The completeness condition reads over this: every planted impact gets a
 coverage action, `unknown` included, or the plan is incomplete.
 
-**Grading falls out of the vocabulary, and no prose is scored.** Impact and
+### Grading falls out of the vocabulary, and no prose is scored
+
+Impact and
 constraint discovery: precision and recall over grading keys, where the key is the
 whole fact. For every other type the key names the subject and the payload states
 the claim (an assessment's key carries no verdict), so key match and payload
@@ -332,7 +363,9 @@ need, and no scenario is authored to give a type coverage.
 
 ## One organization, many scenarios
 
-**One generated organization, read-shared, write-isolated, truth-isolated.** The org
+### One generated organization, read-shared, write-isolated, truth-isolated
+
+The org
 is a single synthetic company of roughly 25 to 30 people in about five teams, both
 generator parameters (`ORG_SIZE`, `TEAM_COUNT`) rather than fixed numbers. The agent
 sees the whole org: other teams' people, tickets, meetings and policies are the
@@ -352,7 +385,9 @@ would have read them. A slice is therefore enumerable from the spec and could be
 reset from it if anything ever writes to the world; the reset itself is not built
 until something does.
 
-**People are cheap and scenarios are expensive.** A person is a handful of generated
+### People are cheap and scenarios are expensive
+
+A person is a handful of generated
 records per system; a scenario is planted facts, named distractors, a relevant
 policy clause, a defensible key and a hand audit. The golden set therefore grows by
 adding scenarios in new time windows, not by adding employees. Three constraints
@@ -364,7 +399,9 @@ rather than "hundreds of tickets"; and policy clauses have real-world scope only
 (contractors, a country, a grade), with scenarios chosen so a clause becomes
 relevant, never clauses written to make one scenario's answer come out.
 
-**Synthetic employees are domain entities, not vendor users.** Work ownership in
+### Synthetic employees are domain entities, not vendor users
+
+Work ownership in
 Jira lives in a dedicated single-select custom field keyed by stable employee id
 (`emp_017 — Alice Demir`); `assignee` stays unassigned so the board never claims the
 service account is responsible for the work. Issues, workflows, sprints, components,
@@ -377,7 +414,9 @@ paths in every tool and grader, and licensing shaping which people a scenario ma
 involve); Jira Service Management customer accounts (free and unlimited, but their
 appearance in user pickers is a documented gap the vendor is asked to close).
 
-**Time is world state, never the machine's clock.** Every run receives a
+### Time is world state, never the machine's clock
+
+Every run receives a
 `RunContext`: scenario id, world (seed) version, a canonical `now` as an instant
 with a reference timezone. That is the reproducibility boundary: same scenario, same
 world version, same `now` → same evidence, on any machine, months later. `now` is
@@ -403,8 +442,9 @@ answer": within the interval the key must hold for any `now`; outside it a scena
 may legitimately flip (a notice-period clause), and such flips are a
 temporal-reasoning test of their own.
 
-**History is planted only where it can be planted honestly; qualification is derived
-from atomic facts, never stored as a conclusion.** Jira's REST API cannot set
+### History is planted only where it can be planted honestly; qualification is derived from atomic facts, never stored as a conclusion
+
+Jira's REST API cannot set
 `created`, `updated` or `resolutiondate`, so "Bob resolved twelve payments tickets
 last year" is not a plantable world fact over REST. Coverage qualification is
 therefore expressed as atomic, world-observable facts spread across the systems (an
@@ -431,8 +471,9 @@ prose, which stays whole, prefix included, and fails loudly on a comment without
 the validator checks every projected comment parses. The free-text synthesis the
 fragmented tier measures is the comment's content, never who said it when.
 
-**Thirty scenarios, ten per tier; a tier is a capability level, a class is what a
-scenario is about, and modifiers ride on top.** The tiers name how far the reasoning
+### Thirty scenarios, ten per tier; a tier is a capability level, a class is what a scenario is about, and modifiers ride on top
+
+The tiers name how far the reasoning
 has to reach. Tier 1, structured: every answer-relevant fact sits in a structured
 field (dated tickets the leaver owns, meetings in the slice, skills on the HR
 record, free/busy, open-ticket load); the capability under test is tool use,
@@ -460,7 +501,9 @@ text enters. Tool failure is a run condition applied over any scenario (the same
 truth, run once normally and once with Calendar unreachable), never a scenario
 class, so degradation is measured against an unchanged key.
 
-**Primitive failure modes repeat independently before any composite.** The
+### Primitive failure modes repeat independently before any composite
+
+The
 stratification (counts cheap to change, the rule lasting): Tier 1, four deadline,
 four meeting, two mixed; Tier 2, three free-text qualification, three free-text
 responsibility, two release-cardinality, two combinations; Tier 3, three source
@@ -478,7 +521,9 @@ scenario; uncertainty is reported at scenario level, bootstrapped over scenarios
 The set grows after the first evaluator shows which classes need more cover, not
 before, and not to narrow an error bar.
 
-**A scenario owns a disjoint fourteen-day slice; the leave sits inside it.** The
+### A scenario owns a disjoint fourteen-day slice; the leave sits inside it
+
+The
 slice is the world state the scenario owns and the cheapest write-isolation
 mechanism there is; it also gives the shared calendars a believable spread. Slices
 are dealt in order with a random gap of up to three days; the leave starts on day
@@ -490,7 +535,8 @@ months of organizational history, which the calendars and the ticket dates carry
 believably; the first cut, one window per month, was the cost of the same isolation
 at twice the span. The rule may relax once entity ownership is proven.
 
-**Org-level facts are static across the world; scenarios select, never mutate.**
+### Org-level facts are static across the world; scenarios select, never mutate
+
 Several classes rest on facts that no scenario owns: a skills field, a team
 membership, a manager link. A missing-information scenario wants the only plausible
 candidate to have no skills record, and blanking that field for one slice would leak
@@ -503,7 +549,9 @@ Verdicts derive from the fact base, so the same person is consistently `unknown`
 wherever they are a candidate. With roughly twenty-eight people and thirty
 scenarios, leavers repeat, as they would.
 
-**The fact base is world-level and time-filtered by `now`.** A qualification
+### The fact base is world-level and time-filtered by `now`
+
+A qualification
 evidenced in a ticket comment from month three is admissible in month nine and not
 in month one. Every fact in the truth base therefore carries the world date at which
 its provenance became observable (static HR facts carry world start), and the
@@ -523,8 +571,9 @@ organization's history up to `now`, not the scenario's slice.
 
 ## Truth before prose
 
-**Semantic generation is deterministic and pure; surface prose is materialized once
-and frozen; projection reads the frozen world.** Seed, parameters and generator
+### Semantic generation is deterministic and pure; surface prose is materialized once and frozen; projection reads the frozen world
+
+Seed, parameters and generator
 version go into the pure generator and the complete structured world comes out as
 plain data, with a *brief* for every piece of prose the world needs. A second stage
 materializes the briefs into text: deterministic templates for structured-shaped
@@ -548,8 +597,9 @@ fingerprint and the generator version as fields, so a vocabulary addition moves 
 reference digest even when nothing drawn changes (a batching argument that rested on
 "the reference digest checked unchanged" was corrected on that finding).
 
-**A brief carries facts, never sentences, and the model does surface realization
-only.** A brief holds the target's construction fields, the required facts as
+### A brief carries facts, never sentences, and the model does surface realization only
+
+A brief holds the target's construction fields, the required facts as
 positive `Fact` records, the allowed context facts, a surface namespace derived from
 those facts through the closed vocabulary (so a class cannot forget a name or leak
 one), and a register. "Must include the sentence 'Deniz has Kafka experience'" would
@@ -564,7 +614,9 @@ reference must resolve to exactly one brief before composition, a contract that
 ranges over the whole bundle, world-owned policy clauses included, so the first
 world-owned clause cannot arrive without its brief.
 
-**Filler is a world-level pool, and a level is a count into it.** The measurement
+### Filler is a world-level pool, and a level is a count into it
+
+The measurement
 world carries documents no scenario owns, answer-neutral by construction, as a
 ranked tuple on the world spec beside a short list of levels, each a name and a
 filler count with the base level at zero. A level's membership is derived, every
@@ -609,6 +661,8 @@ token count is one tokenizer's, so the world seals document counts and the
 registration records each level's count and its full-context request size, the input
 tokens the provider reported over the calibration scenarios at the freeze.
 
+### Generated text is accepted only under semantic containment
+
 **Generated text is accepted only under semantic containment**: every required
 planted fact is present and no additional benchmark-relevant fact is introduced,
 `required(brief) ⊆ claims(text) ⊆ allowed(brief)`. A lexicon check is not that
@@ -640,7 +694,9 @@ checker still catches and a no-claim one only the scanner sees, reassessed only 
 golden audit, with a vocabulary-level surface policy the named successor if length
 proves a poor proxy.
 
-**Failed generations are discarded and retried, never patched.** A patched artifact
+### Failed generations are discarded and retried, never patched
+
+A patched artifact
 has the provenance "model output plus generator fix plus perhaps a human edit"; a
 discarded one needs nothing. Each attempt is a fresh sample of one identical request
 with no refusal fed back (the orchestration creates no dependence between attempts,
@@ -665,7 +721,9 @@ behind. The materializer sits behind a renderer seam so the unit level uses a fa
 renderer, and at thirty scenarios the whole stage costs well under a dollar per
 world.
 
-**Materialization's provenance seals in the truth manifest.** A brief's required
+### Materialization's provenance seals in the truth manifest
+
+A brief's required
 facts and a checker's reading of a text are exactly what truth expects, and the
 world spec, readable by the validator's role, holds nothing truth expects. The
 record carries the writer and checker configuration whole, the prompt-asset digests,
@@ -694,8 +752,9 @@ The live evidence is a manually dispatched probe workflow under the generator ro
 reporting ids, outcome, latency and token counts and never text; cassettes were
 rejected because a recorded model output proves nothing a stub and the probe do not.
 
-**Before sealing a restart regenerates; after sealing it resumes the named
-realization.** Reassembly from the seed no longer reproduces the bytes once a model
+### Before sealing a restart regenerates; after sealing it resumes the named realization
+
+Reassembly from the seed no longer reproduces the bytes once a model
 has written prose, so a resume reads the sealed spec, gates on an equal generator
 version (resume is not migration), refuses unless the semantic digests are equal,
 lifts the accepted bodies from the sealed plantings and refuses unless the
@@ -708,8 +767,9 @@ hard kill under the workflow's pipe must not lose the resume handle. A fresh run
 a new attempt not entitled to reuse the previous realization; landing on the same
 bytes, the immutable writes hit the equal case.
 
-**An organization is identified by three inputs and guarantees shapes, never
-coverage.** The seed is the stochastic realization, the parameter record the shape
+### An organization is identified by three inputs and guarantees shapes, never coverage
+
+The seed is the stochastic realization, the parameter record the shape
 (every dial that can change the org lives there or does not exist), the generator
 version the algorithm, stamped by the code because a version a caller could pass is
 provenance a caller could forge; the interpreter's minor version is recorded and
@@ -728,7 +788,9 @@ about coverage: a first draft promised every skill two holders "so coverage is a
 search", and would have made `uncovered` and `missing_information` unplantable,
 since both select static org facts.
 
-**Constructive selection, never rejection sampling.** A scenario class states what
+### Constructive selection, never rejection sampling
+
+A scenario class states what
 it needs from the static organization as a query and returns every admissible
 construction in a canonical order; the RNG chooses among them; the construction
 plants the owned entities and authors the expectations; `core`'s rules then run over
@@ -755,8 +817,9 @@ record that binds them. Truth is `core`'s derivation over every planted record f
 its planted date plus the facts only a world can plant, each stated once as the fact
 and once in the brief that will carry it, on purpose.
 
-**A scenario is correct locally against its key; a world is correct globally over
-the history observable at each scenario's `now`.** A record one scenario plants can
+### A scenario is correct locally against its key; a world is correct globally over the history observable at each scenario's `now`
+
+A record one scenario plants can
 change a verdict in another slice months later, which per-scenario verification
 cannot see, so the golden set is valid only after every scenario is re-verified
 against the assembled world, across its stable interval, under both the dated and
@@ -770,8 +833,9 @@ comment is meant to be admissible months after its slice. Attribution is free
 because planted records are only ever added, so a verdict can only flip toward more
 established facts.
 
-**The world plan is data, drawn by a planner that never decides whether a plan
-exists.** A seeded table of tier, class and modifiers per scenario, produced by a
+### The world plan is data, drawn by a planner that never decides whether a plan exists
+
+A seeded table of tier, class and modifiers per scenario, produced by a
 deterministic backtracking search under a stated rule (the tier counts, every
 modifier on at least two scenarios, at most two on any, at least two with none) in
 which the RNG orders the legal alternatives; a greedy draw raised on thirty-seven of
@@ -788,8 +852,9 @@ uncovered row on any of two hundred seeds and two teams left the qualification
 class's wrong-team pair unplantable on most; size below the default is a measured
 refusal rate on record, not an affordance.
 
-**The timezone affordance is guaranteed by the organization, and the far seat is
-always a colleague.** At least two employees whose zone differs from the reference
+### The timezone affordance is guaranteed by the organization, and the far seat is always a colleague
+
+At least two employees whose zone differs from the reference
 zone by a fixed minimum at every instant of a year, DST-aware and date-free, so the
 org generator can check it alone; offsets are computed at the planted instant, never
 as city constants, and truth stays reference-zone based. The modifier chooses the
@@ -804,7 +869,9 @@ leaver as the far seat; under the stated rule the key is right and the scenario
 stands, and every later world seats a colleague, the guarantee grown from one far
 person to two so the modifier stays affordable by construction.
 
-**Three sealed artifacts serve three readers, and storage follows access.** The
+### Three sealed artifacts serve three readers, and storage follows access
+
+The
 *world spec* (organization, plan, slices, provenance, the other files' hashes) is
 benchmark-private, since the plan alone names which traps were planted; the
 *scenario specs* hold the agent-visible rows; the *truth manifest* is evaluator-
@@ -827,7 +894,9 @@ manifest under separate prefixes, the validator's role reading the spec prefix o
 and the evaluator's both, the application's neither; the world bucket holds the
 scenario specs, the documents and the manifest.
 
-**The sealing order keeps a half-finished run harmless.** The pure assembly fixes
+### The sealing order keeps a half-finished run harmless
+
+The pure assembly fixes
 every world-content byte and the version before anything is written. The two truth
 objects go first, by conditional create, before the first vendor call, so live
 vendor state never exists without its sealed answer key while truth-only orphans are
@@ -850,7 +919,9 @@ newest-approved choice, if ever needed, is a listing of the prefix and not a mut
 pointer. Vendor names derive from the version, so no operator chooses them and two
 worlds on one site cannot collide by choice.
 
-**Projection is the effectful, idempotent shell.** One projector per system, each
+### Projection is the effectful, idempotent shell
+
+One projector per system, each
 find-or-create by the domain id planted on every entity, accepting an existing
 record only when it equals the planted entity as read back (the integration tests
 prove the round trip exact for every generator-controlled field, so equality is the
@@ -901,8 +972,9 @@ document writer, since it is cache materialization and not authorship; the
 adapter is reader-only, the one class that held both ports having lost its reason
 when the documents became objects.
 
-**The validator is a distinct module that only reads, and validates the projected
-systems rather than the generator's intermediate objects.** It re-reads the live
+### The validator is a distinct module that only reads, and validates the projected systems rather than the generator's intermediate objects
+
+It re-reads the live
 systems the way the investigator reads them and compares them with the sealed spec:
 every closed enumeration exact, missing and foreign both named; every record equal
 to its planting; each scenario's derived view, read once at its run day, equal to
@@ -954,7 +1026,9 @@ construction probes beside it are `section-probe`, `comment-probe` and
 `reservation-book`), and every fact only prose carries is answer-changing by
 derivation, a context role being a construction error.
 
-**A responsibility that exists only in a document is a fact of its own.** A registry
+### A responsibility that exists only in a document is a fact of its own
+
+A registry
 row, `names_responsible`, has the section as its subject, the employee as its value
 and the corpus as its sole evidence. The impact's artifact is the section itself, so
 the section is both the obligation and its provenance. The alternative primitive, a
@@ -980,7 +1054,9 @@ world invariant, so the validator runs no query against the live corpus, which w
 reinstate a system demoted to the application's cache for a property that has no
 definition without the query.
 
-**Impact grounding is a conclusion.** Impacts were authored and never derived, so a
+### Impact grounding is a conclusion
+
+Impacts were authored and never derived, so a
 fact whose only role is to make an impact exist was invisible to the role derivation
 by ablation and the required-sources derivation by outage: harmless while every
 impact rested on planted records, fatal for a class whose one prose fact is the
@@ -992,7 +1068,9 @@ facts; construction requires the expected impacts to equal the derived ones in b
 directions. The exact-artifact form keeps a missing fact for one section from being
 masked by an obligation elsewhere.
 
-**A section-artifact impact narrows its candidates by a clause.** With no component
+### A section-artifact impact narrows its candidates by a clause
+
+With no component
 to ask about, every employee would be viable for a responsibility and its
 assessments would carry no signal, so the responsibility class pairs the
 model-written client-note section with a template-written procedure clause applying
@@ -1003,7 +1081,9 @@ third prose mechanism the set never asked for. Registers get one job each: the
 client note carries the contact, the runbook the stale owner, the policy and the
 procedure requirements.
 
-**Constraint-bearing documents are scenario-owned.** A world-owned clause is not
+### Constraint-bearing documents are scenario-owned
+
+A world-owned clause is not
 storage ownership but an applicability rule, and with constraints declared per
 scenario a world-owned policy would either change structured keys wherever its scope
 landed or leave those keys contradicting the text. So a constraint is carried by a
@@ -1012,8 +1092,9 @@ target agree by construction; an exclusive-component reservation was rejected as
 debt disguised as planning, and world-owned policies are a named, deferred
 capability rather than an implied current feature.
 
-**A policy scopes itself by the release's exact title, and titles are minted without
-replacement.** A component-scoped constraint was rejected as the cross-scenario
+### A policy scopes itself by the release's exact title, and titles are minted without replacement
+
+A component-scoped constraint was rejected as the cross-scenario
 applicability the deferred capability owns. Titles had been drawn from a few
 templates with no uniqueness, so a policy's prose could name two artifacts while the
 constraint named one, a mismatch no verifier read; first parked as a rare seed, a
@@ -1022,8 +1103,9 @@ ruling moved to a fix by construction: a title book mints ticket and meeting tit
 without replacement per component and team, an exhausted context is a loud
 invariant, and assembly refuses a constraint whose title names two artifacts.
 
-**The cardinality class carries both consequences in every row, and the organization
-seats its cast.** A release ticket the leaver owns, due inside the leave, under a
+### The cardinality class carries both consequences in every row, and the organization seats its cast
+
+A release ticket the leaver owns, due inside the leave, under a
 scenario-owned policy requiring two employees holding skill X: two viable, a
 contractor non-viable by `hard_rule`, a non-holder non-viable by `skill`, the
 outcome assign, the requirement a minimum and the two-person plan an example never
@@ -1037,8 +1119,9 @@ class (the contractor outside the component) would stop the employment rule bein
 load-bearing; exempting it from the component rule would change a domain rule for
 one fixture.
 
-**Concurrent leave is coverage-aware, over the record and not the authored
-verdicts.** A modifier may never move a declared outcome, so admissibility has to
+### Concurrent leave is coverage-aware, over the record and not the authored verdicts
+
+A modifier may never move a declared outcome, so admissibility has to
 know whether a cover survives. The first ruling counted authored viable candidates;
 it was reopened because `must_assess` is the graded probe set and not the coverage
 universe, the deadline class keeping its outcome through a component member its key
@@ -1050,7 +1133,9 @@ exposes it) or over-afford (the verifier refuses), both loud; the compatibility
 table declares that no valid draft of a class affords the modifier, and
 admissibility proves the declaration in the sweep.
 
-**Missing information and uncovered differ in one placement.** Both plant the same
+### Missing information and uncovered differ in one placement
+
+Both plant the same
 deadline shape under a clause requiring the unheld skill, so every recorded employee
 fails by skill and a blank-record employee is unknown only when every other
 criterion passes. The missing-information class puts its release in a component
@@ -1069,7 +1154,9 @@ for the class by the compatibility matrix under the rule that a modifier never
 changes a declared outcome. Under a tracker outage both become unknown by
 inaccessibility, the run-condition metric's own axis.
 
-**The stale conflict sits on a real impact, and reads resolve.** The tracker says
+### The stale conflict sits on a real impact, and reads resolve
+
+The tracker says
 the leaver owns the release ticket; a model-written runbook section names a teammate
 outside the component as owner. The impact stands, grounded on the tracker; the
 failure caught is an agent that believes the document, drops the impact or hands
@@ -1096,7 +1183,9 @@ corpus is known true: answered is the line, not answered positively. And conflic
 were not conclusions, so the stale-owner fact would have been labeled context and
 skipped at the hand pass; derived conflicts now enter the conclusions.
 
-**The key seals two derived conclusions, the conflicts and the unknowns.** Without
+### The key seals two derived conclusions, the conflicts and the unknowns
+
+Without
 them the conflict class was gradable only through side effects. Two append-only
 fields, the expected conflicts and the expected unknowns, derived by one shared
 reading pass over the groundings and assessments and never authored: a class asserts
@@ -1113,7 +1202,8 @@ conflict outside the set a relevance error, every reported conflict still checke
 against the authority table. A key sealed before the fields decodes them as none,
 absent kept distinct from empty.
 
-**Composites are fixed pairings whose constituents stay independently observable.**
+### Composites are fixed pairings whose constituents stay independently observable
+
 The fragmented composite is the responsibility note's section carrying a second
 fact, that the cover holds the required skill their HR record lacks, so one text
 must carry and one checker must extract two facts of different subject shape; two
@@ -1140,8 +1230,9 @@ found, since the existing pair sweep already composes every compatible pair of e
 class through the verifier, so the composite's pair is exercised the moment its row
 is declared.
 
-**The world records what each admitted scenario binds, and refuses a later candidate
-that crosses it.** The first plan seating the responsibility class beside other rows
+### The world records what each admitted scenario binds, and refuses a later candidate that crosses it
+
+The first plan seating the responsibility class beside other rows
 was refused by the whole-world re-verification on twenty of twenty seeds, on
 interactions no per-scenario test can see: a person one scenario's note names
 responsible being another's leaver, and a person one scenario's prose gives a skill
@@ -1185,7 +1276,9 @@ order exhausts four of two hundred against the scarcity order's one
 and far from plan order's. A refused seed is a loud refusal naming the row and the
 rules, and the contract promises no world for every seed.
 
-**The tiered plan is one table per tier, each checked on its own slice.** Tier 2
+### The tiered plan is one table per tier, each checked on its own slice
+
+Tier 2
 splits three qualification, three responsibility, two cardinality and two composite;
 the coverage minima and the clean-row floor are tier-local, because the structured
 tier alone already meets every minimum and a rule over the union would let every
@@ -1200,7 +1293,9 @@ offered plan drew them, a test pins the unoffered set, and no entry point reache
 unoffered class. The wrong-team meeting's team pool excludes every team holding a
 graded candidate, after the modifier alone refused eight of four hundred seeds.
 
-**The materialization gates were tuned on one measurement world, then frozen.** One
+### The materialization gates were tuned on one measurement world, then frozen
+
+One
 world under the real pipeline, sealed and validated and never counted among the
 thirty, gave the numbers the design had predicted and never measured: first-attempt
 pass two of three, eventual pass three of three, no cap exhausted, about a cent and
@@ -1230,7 +1325,9 @@ with human inspection, no rate reported, the accepted risk being that a defect f
 only at the golden audit costs a new golden realization, since materialization fails
 before any external projection.
 
-**Each register is fixed on a probe, and the checker keeps its model.** The
+### Each register is fixed on a probe, and the checker keeps its model
+
+The
 client-note register is third person, written by a colleague, because a section has
 no author for a first-person statement to bind to; the checker is told that the
 carrier description identifies the text and asserts nothing about the world, a
@@ -1265,8 +1362,9 @@ that the automated gate is limited by the checker's proposition recall, which is
 the first set's coverage is three layers together, the lexical guards, the
 extraction containment and the human acceptance of every answer-changing text.
 
-**Required-source derivation is semantic, not provenance-based, and its one untested
-half is a documented claim with a re-arm list.** The responsibility class plants no
+### Required-source derivation is semantic, not provenance-based, and its one untested half is a documented claim with a re-arm list
+
+The responsibility class plants no
 tracker artifact and its key requires the tracker anyway through the known-negatives
 of everyone lacking the skill, which a construction test pins. The other half, a
 foreign fact that changes the derived required-source set while every ordinary
@@ -1288,8 +1386,9 @@ to the derivation itself.
 
 ## Sealing and the audit
 
-**Benchmark state is split by audience and authority, and "sealed" is enforced, not
-promised.** World and truth live in separate S3 buckets; the application's instance
+### Benchmark state is split by audience and authority, and "sealed" is enforced, not promised
+
+World and truth live in separate S3 buckets; the application's instance
 role can read the world bucket's `worlds/` prefix and has no capability over truth
 at all, not a read, not an assume. The evidence a reader can check is taken on the
 host itself, on every deploy, under the real instance profile: the deploy job runs a
@@ -1302,8 +1401,9 @@ not an image's. The key must exist because S3 answers a get of an absent key wit
 probes proved only the list denial that way, and a platform-owned canary object
 outside the final prefixes closed the gap.
 
-**The generator is never part of the deployed runtime and never runs from the
-instance.** It knows both halves of the split. An earlier design had it assume a
+### The generator is never part of the deployed runtime and never runs from the instance
+
+It knows both halves of the split. An earlier design had it assume a
 generator role from the instance profile through STS, and that was a process
 distinction, not an IAM one: a role the instance role may assume is a role the
 application can obtain, so the boundary was a promise. The generator and the
@@ -1349,7 +1449,9 @@ manifest, the truth listing and two disposable puts refused with AccessDenied. T
 evaluator's role was settled at that entry with its execution boundary; a guessed
 trust frozen earlier would have been a hole in the sealing claim.
 
-**Integrity is the guarantee underneath secrecy.** Every final object is written
+### Integrity is the guarantee underneath secrecy
+
+Every final object is written
 once, by a conditional create the bucket policy enforces on the final prefixes (a
 plain put refused, a second create refused, and a refusal accepted only when the
 bytes already there are the bytes being sealed), versioned with no delete grant to
@@ -1361,7 +1463,9 @@ notes stay in the truth bucket, never in the public repository; the repository
 publishes the audit methodology and fully released example scenarios, and a retired
 evaluation set can be published whole.
 
-**Two audit depths make "golden" an honest word.** Every scenario receives
+### Two audit depths make "golden" an honest word
+
+Every scenario receives
 deterministic validation and a human acceptance pass (the scenario, its truth, the
 expected claims, obvious consistency), so every scenario in the set has been looked
 at. Ten of them, stratified across the tiers so that conflict, missing information,
@@ -1373,7 +1477,9 @@ audited subset, and would be named that. The protocol is `AUDIT_METHODOLOGY.md`,
 published scenario-free; the checklist an audit ran under is sealed beside its
 record.
 
-**The audit is written once under a content-addressed identity.** Four objects under
+### The audit is written once under a content-addressed identity
+
+Four objects under
 the truth bucket's create-only audit prefix: an index, the rulings record, the
 summary and the checklist. The identity is the digest of the index, a small
 canonical JSON binding the other three by digest with the sheet's digest, the
@@ -1387,7 +1493,9 @@ rather than policy, a reader verifies by re-hashing the index against the prefix
 files against the digests the index carries, and the only writer is a human under
 the administrator identity from a workstation.
 
-**A scenario released as an example is retired first.** It keeps its place in the
+### A scenario released as an example is retired first
+
+It keeps its place in the
 sealed world and in the audit's provenance (neither is ever edited), it leaves the
 scored set of every later blinded evaluation, the evaluation's manifest names it as
 retired with the release date, and the release carries a contamination statement. A
@@ -1434,7 +1542,9 @@ since that world has nothing to protect.
 
 ## Keeping the benchmark out of the product
 
-**Three layers, and adapters that translate but never launder.** The synthetic world
+### Three layers, and adapters that translate but never launder
+
+The synthetic world
 exists independently of any vendor; each external system holds a representation of
 it; the agent sees a domain-shaped tool surface (`search_work_items(employee_id=…)`,
 `search_policy(…)`) and never a vendor's identity system or query syntax, because
@@ -1447,8 +1557,9 @@ answer questions about the world and make no decisions; real-API behaviour surfa
 as a tool failure, itself an evaluated condition; swapping a vendor touches one
 adapter.
 
-**A tool is one typed specification over one read-port method, constructed by a
-declared registry; MCP was weighed and not chosen.** The thirteen read-port methods
+### A tool is one typed specification over one read-port method, constructed by a declared registry; MCP was weighed and not chosen
+
+The thirteen read-port methods
 are the whole tool surface. Each tool is a specification (name, description,
 argument bounds including the search limit, id validation, the serialization of the
 observed record, the logging hook) naming exactly one port method; the model schema
@@ -1519,8 +1630,9 @@ shared protocol; the conversation surface runs in the same application and reuse
 the registry directly, and the registry is what a server would wrap, so the cost then
 is the transport, not a redesign.
 
-**One class per system implements both of its ports, and a domain id has exactly one
-vendor representation per place.** The read and the write side share a transport, a
+### One class per system implements both of its ports, and a domain id has exactly one vendor representation per place
+
+The read and the write side share a transport, a
 scope and an identity map, and which side a caller holds is the type it is handed.
 The vendors enforce no uniqueness, so each adapter checks it on every select and
 enumeration, and a duplicate is a `MalformedRecord`, never chosen from. The
@@ -1552,8 +1664,9 @@ data applied idempotently at composition, and writes a document with its section
 one explicit transaction, after an implicit one lost every document at the module's
 first review.
 
-**Ranks give the default dependency direction; denied edges enforce the trust
-boundaries.** A rank law alone would have let the investigator import the fact base,
+### Ranks give the default dependency direction; denied edges enforce the trust boundaries
+
+A rank law alone would have let the investigator import the fact base,
 the keys and the briefs at source level while credentials kept it from the truth
 bucket at run time, a boundary the whole answer-key design depends on, left to
 convention.
@@ -1584,6 +1697,8 @@ an infrastructure concern that never touches scenario time. Only the packages a
 milestone needs exist, since empty placeholder packages would be structure for its
 own sake; each later milestone scaffolds its own package after its own design
 session, and the structural test carries the full graph and skips the rest.
+
+### The pure rules live in `core`, shared by the evaluator and the investigator
 
 **The pure rules live in `core`, shared by the evaluator and the investigator**,
 which makes the sharing visible where duplication would hide it. Sharing rules is
@@ -1621,7 +1736,9 @@ agent's own execution control, ownership and accounting, which the evaluator mus
 never read; the import law keeps it from importing the store, and the database's
 credentials and the deployment keep it from connecting.
 
-**A port returns observed entities, never facts.** `core` derives facts and gaps
+### A port returns observed entities, never facts
+
+`core` derives facts and gaps
 from an observed entity in one deterministic derivation, so an adapter never decides
 what is true, the per-field meaning of absence is stated once (a missing skills
 field is a gap, an empty one zero facts, a missing due date or manager an observed
@@ -1670,7 +1787,9 @@ and the validator, whose job catching a malformed projection is, while whether t
 investigator degrades instead is its own milestone's runtime policy. The two share
 no base, and a vendor exception never leaves its adapter.
 
-**The investigator, at its milestone's entry, inherits five commitments.** It emits
+### The investigator, at its milestone's entry, inherits five commitments
+
+It emits
 the frozen vocabulary and nothing else of its output is graded; its deterministic
 core is the pure rules `core` holds, the same functions the evaluator runs, over
 facts derived through the read ports; it learns the leave from `RunContext` and the
@@ -1689,8 +1808,9 @@ on the key's derived-conclusion fields. Its execution boundary, its identity, it
 metrics beyond the grading and the baselines it grades beside the agent were ruled
 at that entry, 2026-09-20, as follows.
 
-**The evaluator runs as a dispatched workflow under its own identity, grades what the
-recorded run observed, and never re-reads a vendor.** Its role is trusted only to a
+### The evaluator runs as a dispatched workflow under its own identity, grades what the recorded run observed, and never re-reads a vendor
+
+Its role is trusted only to a
 GitHub environment that holds no secrets, so a vendor credential cannot reach the
 job even if a reference is added later, and the boundary is IAM rather than a
 workflow review; it reads the truth manifest, the sealed spec and run exports (and,
@@ -1859,8 +1979,9 @@ sentence, two principals on one host being two configurations and not a boundary
 workstation runs were rejected because evaluation repeats and needs run-and-attempt
 provenance.
 
-**The truth manifest is decoded whole by one gated module, and absent stays apart
-from empty.** The manifest's value is a set of types that are exactly the file's
+### The truth manifest is decoded whole by one gated module, and absent stays apart from empty
+
+The manifest's value is a set of types that are exactly the file's
 content: its scenario rows with their keys, authored facts and briefs, and the
 materialization record. One encoder writes it through a pure projection of the
 assembled world, and one decoder reads it, taking bytes and accepting them only when
@@ -1880,8 +2001,9 @@ Only bytes sealed before the fields existed decode as unavailable (the measureme
 world's manifest, confirmed against its live bytes), and the evaluator's join
 refuses such a key, so unavailable never reaches a metric.
 
-**The evaluator loads a world by proving it, and refuses the whole world on any
-incompatibility.** Loading reads the world spec, the scenario specs and the truth
+### The evaluator loads a world by proving it, and refuses the whole world on any incompatibility
+
+Loading reads the world spec, the scenario specs and the truth
 manifest by key through the object-store reader and records the version ids
 returned. It verifies the two digests the world spec cites against the files' bytes,
 recomputes the world version from the three byte streams and compares it with the
@@ -1907,7 +2029,9 @@ the context from the default formatter and leaves the reason on the exception; t
 refusal is raised after the handler has ended and keeps the reason as an attribute
 no traceback prints.
 
-**The evaluator's oracle is runtime truth: what a run can obtain at its run day.** A
+### The evaluator's oracle is runtime truth: what a run can obtain at its run day
+
+A
 world has two views. The dated view admits a fact from the day its provenance became
 observable; the runtime view holds every record the systems hold, dated to the run
 day, which is what the harness gives a run. World assembly proves the sealed key
@@ -1934,8 +2058,9 @@ golden world no part of the answer differs under the normal condition or under a
 tracker or a calendar outage, so no reported result rests on the choice, and the
 ruling stands for the worlds where it does.
 
-**Under an outage the expected answer is derived for the condition, and two
-conditions have none.** The registered injection fails a source for the whole run,
+### Under an outage the expected answer is derived for the condition, and two conditions have none
+
+The registered injection fails a source for the whole run,
 so the condition a run ran under is a set of unreachable sources and the oracle is
 runtime truth restricted to it. The reading pass construction uses derives the
 answer. The expected impacts are those the rules ground under the condition: an
@@ -1969,8 +2094,9 @@ system could score on. A run in which one source both answered and failed, possi
 only from an unscheduled vendor fault, ran under a mixed condition and is limited
 too, labeled and counted apart.
 
-**A grade is one row per expected or reported claim, four things kept apart, and no
-count is stored.** Matching runs on a structurally valid claim set, over the union
+### A grade is one row per expected or reported claim, four things kept apart, and no count is stored
+
+Matching runs on a structurally valid claim set, over the union
 of the keys the oracle requires and the keys the report holds. A row states the
 *expectation* (required; optional, meaning derivable and true outside the probe set;
 unexpected), the *presence* (reported, or missed, which only a required key can be),
@@ -2000,7 +2126,9 @@ compared. Rows are typed per claim type so an impossible combination cannot be
 built, and they hold no counts: tables are aggregated from them, and a table can
 be recut without regrading.
 
-**The plan is asked three questions, and each omission has one record.** *Validity,
+### The plan is asked three questions, and each omission has one record
+
+*Validity,
 against the oracle:* for every action on an expected impact the plan rule is fed the
 oracle's requirements and verdicts, so an assign is valid only when each assignee is
 in the organization and viable in the oracle and the viable assignees meet each
@@ -2026,8 +2154,9 @@ probe set too, being the only record the omission has. Plan violations stay type
 records keyed by impact beside the rows; a flag on the action row would be a second
 copy of them.
 
-**Every export that decodes gets exactly one outcome, and nothing a run did
-raises.** *Graded:* the run completed or reported at its cap, and the oracle has an
+### Every export that decodes gets exactly one outcome, and nothing a run did raises
+
+*Graded:* the run completed or reported at its cap, and the oracle has an
 answer for its condition; a report with no claims is graded through its misses.
 *Limited:* no claim-level answer exists (the unreadable leave, the unreadable
 policy, a mixed condition), so no comparative answer metric is computed, and every
@@ -2051,8 +2180,9 @@ outcome. A condition nobody registered, two sources down for the whole run, is
 graded mechanically, and whether it enters a reported comparison is the
 preregistration's.
 
-**The observed-run view holds what a run's completed reads returned, and truth enters it
-only through a carrier the run read.** `core` derives facts from structured records and
+### The observed-run view holds what a run's completed reads returned, and truth enters it only through a carrier the run read
+
+`core` derives facts from structured records and
 nothing from prose, and five kinds of fact exist only in prose: what a clause requires,
 whom a section names, a stale owner in a runbook, a skill shown in a comment or stated
 in a section. On twenty seeds of the golden plan every one of 620 authored facts is
@@ -2081,8 +2211,9 @@ so the sealed pairing is admitted through the clause, and loading refuses a worl
 every requirement clause's own text names exactly its target. Titles nest by design, a
 qualified title containing the plain one, so the longest title found decides.
 
-**The grounding replay gives each claim one of three standings, on premises taken from
-the run.** *Reproduced*: the rules conclude the claim's payload from what the run read.
+### The grounding replay gives each claim one of three standings, on premises taken from the run
+
+*Reproduced*: the rules conclude the claim's payload from what the run read.
 *Contradicted*: they conclude a different one. *Unsupported*: they cannot conclude, with
 a typed reason (the leave not read, a clause not read, the candidates never enumerated).
 A claim can be right and unsupported, or wrong and reproduced; the replay asks only
@@ -2116,8 +2247,9 @@ says who everyone is. A truthful report over a full read is reproduced whole, 1,
 claims on a thirty-scenario world with 547 of them strictly grounded, and the same
 report over no reads is unsupported throughout.
 
-**A citation is judged on three independent axes, and citing nothing is neither perfect
-nor zero.** *Resolves*: the sealed world holds the cited record, comment or section.
+### A citation is judged on three independent axes, and citing nothing is neither perfect nor zero
+
+*Resolves*: the sealed world holds the cited record, comment or section.
 *Retrieved*: a completed read of this run returned it, a comment or a section inside its
 ticket or document. *Used*: it is a witness of the proof the claim was reproduced by, or
 of a reproduced premise's; this is evaluated only for a retrieved citation of a
@@ -2132,7 +2264,9 @@ of the citations made. Fields are recorded and not judged: an event's schedule c
 from its start and its end together, and a field metric needs that relation, which this
 milestone does not define.
 
-**What a run did is measured beside its outcome, for every export that decodes.** A
+### What a run did is measured beside its outcome, for every export that decodes
+
+A
 failed attempt still made calls and cost money, so the metrics are one record beside the
 outcome, and each part is evaluated where its inputs exist; a part that was not
 evaluated says so and is never a zero. *Source discipline* is read off the trace alone:
@@ -2200,7 +2334,9 @@ injected outage and a vendor's own failure leave the same trace, and the observe
 condition, the stop, the skip and the conformance checks read both alike. A recovering
 process injects what the first was admitted under.
 
-**Tables are cut by cell, and each kind of number has its own interval.** In the tables
+### Tables are cut by cell, and each kind of number has its own interval
+
+In the tables
 an arm is one system under one assigned condition at one assigned corpus level, what the
 registration calls a cell, and a table's cell is an arm at one stratum: the whole set, a
 tier, or a scenario class. Nothing is pooled across systems, conditions or levels. The
@@ -2247,8 +2383,9 @@ and share its people, so resampling them says nothing about another organization
 ten scenarios per tier is very few clusters, where a percentile interval's coverage can
 be poor and visibly discrete; no correction is applied.
 
-**Three baseline systems are preregistered beside the agent and graded by the same
-evaluator from the same export shape.** Rules-only: the frozen structured prefetch,
+### Three baseline systems are preregistered beside the agent and graded by the same evaluator from the same export shape
+
+Rules-only: the frozen structured prefetch,
 the structured projection of what it read as its whole view, the shared rules over it
 with no constraint, and one reporting policy; no model call, no prose read.
 Single-shot: one model call, no tools, over that prefetch plus one fixed corpus
@@ -2326,6 +2463,8 @@ single-shot baseline and recorded per run; which models the comparison arm lists
 the preregistration's to state after the ten-run reforecast, because a model is one
 identifier to switch while prompt text and reported numbers bind to it.
 
+### One committed preregistration file precedes the first reported run and is cited by commit in every evaluation artifact
+
 **One committed preregistration file precedes the first reported run and is cited by
 commit in every evaluation artifact** (the sixth build step; format 2 at the contract
 step, format 3 at the event log step). It is one JSON file with
@@ -2351,7 +2490,9 @@ are asked of, since the identifier that counts is not the one that infers and no
 derives one from the other; and the count retries reference the re-dispatch policy's
 maximum and delay by name.
 
-**The file is a draft, frozen or bound.** A draft may hold a value not yet chosen,
+### The file is a draft, frozen or bound
+
+A draft may hold a value not yet chosen,
 typed as pending with what resolves it, and a pending value blocks only the execution
 that needs it, so the rules-only baseline runs while the model systems' entries wait;
 no entry point fills one with a literal. What a system's execution needs is read one
@@ -2382,8 +2523,9 @@ budget, the field's own meaning contradicted. The committed file is frozen since
 commit, with the world's version alone pending; the draft as it stood before the
 freeze is kept under `tests/fixtures/`, so what a draft means stays testable.
 
-**Four systems, two corpus levels and five assigned conditions make twenty-four cells,
-reported in two ways.** A cell is a system under a condition at a level. Full context
+### Four systems, two corpus levels and five assigned conditions make twenty-four cells, reported in two ways
+
+A cell is a system under a condition at a level. Full context
 joins the three: the single-shot path shown every document of the level in place of a
 retrieval's hits. The level is an assigned factor of its own, base and padded, and the
 answers are the same at both. Every system runs the normal condition at both levels
@@ -2409,6 +2551,8 @@ partway through gives a mixed condition the evaluator limits; no two-source outa
 registered. The schedule's digest covers the source sets, the injection and a protocol
 version, and a run records it.
 
+### The freeze registered twelve of the twenty-four cells and runs eight
+
 **The freeze registered twelve of the twenty-four cells and runs eight** (2026-10-14,
 the freeze step's rulings 1 and 7, ruled on the remaining path's time and money). Every
 system under the normal condition at both levels is run, 240 attempts at one repeat, 180
@@ -2430,6 +2574,8 @@ development values unchanged, since no development run produced an observation f
 another row and none re-dispatched; the budget is $45 expected, $90 ceiling, the
 admission threshold $45 with its limit $90, cumulative over the milestone from the
 measured per-attempt charges and the spend to date.
+
+### The freeze's values came from a calibration on the second development world
 
 **The freeze's values came from a calibration on the second development world**
 (2026-10-14; FINDINGS, `step-15-calibration`). The padded level was chosen by a rule
@@ -2455,6 +2601,8 @@ and restored no recall, so the shipped sentence stays for both roles, and the re
 states the mechanism as such and never as evidence of an input limit. The search tool's
 description states the matching rule the system text states, and every calibration
 round ran that final surface.
+
+### The reported runs ran as registered, and the exit's result is the `phase-c` findings entry's
 
 **The reported runs ran as registered, and the exit's result is the `phase-c`
 findings entry's** (2026-10-16 to 17). The 240 runs closed completed at the first
@@ -2484,8 +2632,9 @@ the freeze, not run and not built, the report saying so. One repeat a scenario, 
 the intervals are over scenarios of this generator in one organization and say
 nothing of run-to-run variability.
 
-**A run is retried after an infrastructure failure only, and the attempt that counts
-is the earliest that did not fail by infrastructure.** Two retries at most. A defect
+### A run is retried after an infrastructure failure only, and the attempt that counts is the earliest that did not fail by infrastructure
+
+Two retries at most. A defect
 is not retried, because a retry could conceal it, not because it is deterministic.
 Counting the first attempt would measure first-attempt reliability and counting the
 last is right only while nothing behavioural is retried, so the estimand is stated:
@@ -2531,8 +2680,9 @@ any such attempt has no counted attempt: the ruling said the latest, and an unex
 attempt before an exported one is a history the publication rule forbids, so neither
 reading counts such a run.
 
-**Three checks are registered, one comparison is primary, and nothing is registered
-as a test of superiority.** Correct whole reads the rows: structurally valid, every
+### Three checks are registered, one comparison is primary, and nothing is registered as a test of superiority
+
+Correct whole reads the rows: structurally valid, every
 required row reported and right, nothing unexpected, no plan finding against the
 oracle. Expected action reads the action rows alone. Reproduced whole asks whether a
 non-empty report's every claim is reproduced by the run's own reads; an empty report
@@ -2566,7 +2716,9 @@ resamples take about a twentieth of a second an interval at these sizes (FINDING
 `resample-timing`), so the count buys smooth percentiles and does nothing for ten
 scenarios a tier.
 
-**Four supporting comparisons are declared, and nothing executes from them.** Vector
+### Four supporting comparisons are declared, and nothing executes from them
+
+Vector
 retrieval, a multi-agent layout, a second model and a model-authored report each have
 their place, their two systems, their endpoint and their analysis in the file, with
 an inclusion decided when the procedure is frozen, before the measurement world
@@ -2583,7 +2735,9 @@ the rules composing over model-stated facts reached the ceiling (the probe of
 2026-10-04). The second model stays unnamed, since none runs and no counting probe is
 spent on one; a vector arm built after the exit is exploratory on this world.
 
-**No scenario of the measured world is tuned on.** The registration declares the
+### No scenario of the measured world is tuned on
+
+The registration declares the
 count in its world section and a frozen file requires it to be zero, so the statement
 is in the registered bytes. The scenario sets, the seeded draw and the second cut of
 every table left with it: with nothing held apart the primary set would be the full
@@ -2594,7 +2748,9 @@ corpus reaches the ceiling, so it separates no model systems. Six of its scenari
 two from each tier by a seeded draw that read no expected answer, are the
 live-iteration subset, listed in the development protocol as bare ids.
 
-**Two diagnostics sit beside the tables and remove nothing from them.** Headroom:
+### Two diagnostics sit beside the tables and remove nothing from them
+
+Headroom:
 under an outage the oracle expects less and a report that states little is right more
 often, so per place the evaluator counts the scenarios rules only does not already
 pass, of how many, two counts that name no scenario. It is computed on the measurement
@@ -2607,7 +2763,8 @@ with the runs that met one and the runs that did not, in every cell; each compar
 says how many of the scenarios it paired carry one. No run and no scenario leaves a
 table for it.
 
-**What a model states exists as types in `core`, ahead of any system that states it.**
+### What a model states exists as types in `core`, ahead of any system that states it
+
 A stated fact is a predicate from a closed list of five, a subject and a value in the
 registry's shapes, the comment or the section that carries it, a verbatim quote, and for
 a requirement the span inside the quote that names its target. Everything that needs no
@@ -2624,7 +2781,9 @@ group and lets the author's be met by "I", so the same words in another person's
 anchor nobody. The table's digest is a function of its rows, spellings and presence rule,
 for the registration to record.
 
-**The view a run concludes from is a total function of what was admitted.** The fact base
+### The view a run concludes from is a total function of what was admitted
+
+The fact base
 refuses one source holding two values for a single-valued fact, and a statement's source
 is its carrier's, so a comment read as naming an owner other than the ticket's own field
 would have stopped the harness on a model's misreading. No sealed world plants such a
@@ -2639,7 +2798,9 @@ stated fact is dated to the run's day like every fact a run derives: the view dr
 is dated later, and a carrier planted for a later scenario is still a record the run
 read.
 
-**The model states facts and the shared rules conclude, for every model system.** A
+### The model states facts and the shared rules conclude, for every model system
+
+A
 model decides what to read and states what free text asserts, each fact with its
 carrier (a ticket comment or a document section) and a verbatim quote; the rules
 compose every claim from the structured reads and the stated facts, and no model
@@ -2659,7 +2820,9 @@ accumulate over a run and none is retracted; two readings of one passage that gi
 single-valued fact two values are both left out of the final view, and stay in the
 trace.
 
-**A clause's scope is a span the model copies and the harness binds once.** A
+### A clause's scope is a span the model copies and the harness binds once
+
+A
 requirement is stated with the title of what it applies to, copied from inside its own
 quote. At composition the span is compared for exact equality with the titles of the
 distinct tickets, meetings and documents the run read: one match places the
@@ -2674,8 +2837,9 @@ unapplied; both are the system's measured behaviour. An unplaced or ambiguous
 requirement composes no constraint and no unknown, is shown in the report as a
 diagnostic, and is inside what an approval covers.
 
-**A statement is admitted over the reads logged before it, by five gates asked in one
-order.** The carrier is inside a record a read of the run returned; the quote is an exact
+### A statement is admitted over the reads logged before it, by five gates asked in one order
+
+The carrier is inside a record a read of the run returned; the quote is an exact
 substring of the carrier as read, with no normalization; the subject is a record the run
 returned; the value has a form the run can look for, an entity it returned or a skill of
 the public vocabulary; and the quote holds the anchors the table asks of that predicate.
@@ -2690,7 +2854,9 @@ records the run returned, never anything sealed. The gates live in `core` becaus
 harness admits with them and the evaluator reruns them, and the two may not import each
 other.
 
-**A requirement of one is anchored by its criteria and not by its number.** A clause
+### A requirement of one is anchored by its criteria and not by its number
+
+A clause
 that asks for one person seldom writes the number: "needs an engineer with Go
 experience", "the contact named in the account notes needs React experience". With the
 count anchored the guard refused 15 of the 17 requirements a truthful reading of the
@@ -2702,7 +2868,9 @@ lexical. A model that reads "two engineers" as one is admitted and graded wrong,
 requirement of one with no criterion has no anchor left, so what it composes is judged
 like any other constraint.
 
-**A clause governs one artifact, and composition says which.** Every requirement the
+### A clause governs one artifact, and composition says which
+
+Every requirement the
 join left standing has its span bound once, over everything the run read. A clause whose
 spans placed on one artifact governs it, whatever else was stated beside them: a span
 that ran long costs nothing when another emission of the same requirement placed. A
@@ -2720,8 +2888,9 @@ reported impact, the artifact or its readable component, which is the set an ans
 expects. A requirement bound to something the leave does not touch is stated as no claim
 and is no error.
 
-**One composing path and one composing policy, for every system whose claims the rules
-write.** The path is the join, the binding and the scope rules, the shared rules, and the
+### One composing path and one composing policy, for every system whose claims the rules write
+
+The path is the join, the binding and the scope rules, the shared rules, and the
 reporting policy; the baseline is that path given no statement, and its claims are the
 same claim for claim as before the path existed. The policy an export records is an
 identifier and the digest of a specification: a version kept by hand, the reporting
@@ -2735,7 +2904,8 @@ refused for its unread subject, and no report moves by either. The parser of a m
 entries reads the one shape a model has been shown to fill and keeps an unreadable entry
 whole beside its reason; how a model is asked for entries is the graph's.
 
-**A structured source that contradicts itself within a run fails the run by defect.**
+### A structured source that contradicts itself within a run fails the run by defect
+
 The world is static while a run reads it, so two complete reads that cannot both be true
 are never a state to conclude from, and a degrade would pass a broken vendor off as
 unknowns a model is then graded on. Four shapes, between two operations in either order:
@@ -2755,7 +2925,9 @@ mapping still withdraws such a record, because a replay must be total over any e
 Whether a port's sequence is the whole answer cannot be seen from a trace, so a lagging
 index shows here as an omission and stops runs loudly.
 
-**Two checks changed meaning before any system was measured.** Reproduced whole also
+### Two checks changed meaning before any system was measured
+
+Reproduced whole also
 requires that no claim rests on a premise the report does not hold, since a report
 otherwise gains by leaving out a claim that would be contradicted. And the chain check
 calls an uncovered action beside a viable assessment incoherent only when no constraint
@@ -2765,8 +2937,9 @@ report does not assess viable is the chain's finding alone; the declared-constra
 check reports the count and leaves the assignee to it, since that check goes uncheckable
 when a cited clause cannot be read and the chain reads the report alone.
 
-**The mechanism measure says where a needed statement was lost on the way to a
-report.** Some of what the rules conclude rests on facts only prose carries, and a
+### The mechanism measure says where a needed statement was lost on the way to a report
+
+Some of what the rules conclude rests on facts only prose carries, and a
 system that reads prose has a model state them. The statements a scenario needs are
 fixed by the sealed scenario and the condition a run was assigned, never by the run:
 the ones whose removal moves a key every report must hold. On the suite's throwaway
@@ -2792,8 +2965,9 @@ stages by predicate at the whole, and contrasted on the pairs the registration a
 compares, the primary's, each secondary's and each level contrast's; the descriptive
 product has no registered reading of a stage and holds none. It carries no claim.
 
-**Every statement a model made is put in one class, and a true statement is not
-always one the text makes.** Beside the stages a table counts each entry of each
+### Every statement a model made is put in one class, and a true statement is not always one the text makes
+
+Beside the stages a table counts each entry of each
 batch once: malformed; on a carrier the world does not seal; on a carrier no read had
 returned by that answer; on a carrier that came back with other content; needed; true
 and unneeded, which is valid context; true and stated by other prose than the carrier
@@ -2809,7 +2983,9 @@ gates only its requirements are admitted, 17 of the 31, because that world's
 model-written prose is stand-in text that names nobody and only the class-written
 clauses carry their anchors.
 
-**What a harness recorded about stated facts is decided again from the export.** The
+### What a harness recorded about stated facts is decided again from the export
+
+The
 gates, the join and the scope rules are shared code, so the evaluator reruns
 admission for every stated fact over the reads logged before the answer that carried
 it, and reruns composing over the admitted statements and all the run's reads. A
@@ -2822,8 +2998,9 @@ report does; so a run the rerun disputes is counted as one and stays in its tabl
 A composition is rerun only where one was made, by the rules, in an attempt that did
 not fail.
 
-**Every document a run was shown is held to its level, and a run that went on past a
-contradiction says so.** The level is read off the record and never inferred from the
+### Every document a run was shown is held to its level, and a run that went on past a contradiction says so
+
+The level is read off the record and never inferred from the
 reads. Shown is every document any operation returned, whoever asked: a search, a
 read by id, the documents a harness puts before a full-context call, which are
 operations of the trace like the rest. A document outside the level's sealed
@@ -2836,7 +3013,9 @@ another reason, went on where the rule stops a harness, and is counted. The
 accounting and the attempt summary hold the four counts from one function, over the
 counted runs and over every attempt.
 
-**What a record states about its own ending is held to its export.** Format 3 lets a
+### What a record states about its own ending is held to its export
+
+Format 3 lets a
 record say how many segments an attempt ran in and on which commits, between which two
 instants, over which payload its approval was asked, and which generation an
 abandonment fenced, and nothing recomputed any of it. Five findings, each the
@@ -2861,8 +3040,9 @@ any reason removes a run from a table, so one refused for its tree or its settin
 listed all the same. It is kept apart from a source that contradicted itself: it is
 about one attempt, implicates no scenario and enters no comparison's count.
 
-**Each dispatch's reading is held to the registered table, and what the export cannot
-give back is said.** The evaluator reads every observation again by the table's own
+### Each dispatch's reading is held to the registered table, and what the export cannot give back is said
+
+The evaluator reads every observation again by the table's own
 function and compares the rule and the kind recorded. A dispatch records the rule and
 not the cause the harness supplied, so the observation is read under no cause and
 under each cause of the closed list, and the recorded rule must be one of those: a
@@ -2880,13 +3060,17 @@ sent more than once is a finding wherever a response carried the count, nothing 
 allowed to retry beneath a dispatch. The tool calls a model made are tallied by what
 became of each, the undispatched ones by reason.
 
-**What the measurement still lacks before any model system is measured.** The
+### What the measurement still lacks before any model system is measured
+
+The
 paragraphs above describe the evaluator and the committed registration as they stand;
 the event log step built the harness that fills the export, and what remains is listed
 here and rewritten as each lands. Until then the registration stays a draft, and no
 reported measurement is made under it.
 
-**The measurement world is generated by the tree, from a seed nobody has seen.** The
+### The measurement world is generated by the tree, from a seed nobody has seen
+
+The
 seed of an embargoed world is thirty-two bytes of entropy stored as a repository
 secret and read by the generator from the job's environment as lowercase hex, parsed
 in memory and never passed through `argv`, printed, or transformed into any other
@@ -2906,7 +3090,8 @@ seed the reservation book refuses is replaced by a fresh draw, numbered and coun
 never logged. After the last confirmatory measurement the seed and the recipe are
 published in FINDINGS.
 
-**A development world is sealed unprojected and read through planted readers.**
+### A development world is sealed unprojected and read through planted readers
+
 Under `--unprojected` the generator opens the two stores alone, no vendor host and
 no credential, seals the truth pair, every document and the scenario specs by
 conditional create, reads each back, and writes no checkpoint and no manifest; a
@@ -2926,8 +3111,9 @@ documents, sealed forty-one objects and proved thirty scenarios with retrieval
 targets of 33, 15 and 27 under the three answerable conditions, against the golden
 world's 31, 14 and 25 (FINDINGS, `generator-step`).
 
-**Export format 3 is built and the event log fills it; three things it names still
-lack their values.** The attribution table is a type in `core` with its matcher and
+### Export format 3 is built and the event log fills it; three things it names still lack their values
+
+The attribution table is a type in `core` with its matcher and
 its digest, and a section of the registration whose rows are pending. By the ruling a
 response under a registered stop reason is behaviour, a denial, a throttle, a server
 error and a timeout are infrastructure, Nova's model error is behaviour only under the
@@ -2946,8 +3132,9 @@ All three hold values since the freeze of 2026-10-14: the committed registration
 bound at format 5 with no pending field, its attribution rows and re-dispatch policy
 the development values unchanged, and the price table is committed beside it.
 
-**Four audits read a run's account, counts, calls and eligibility from the export, on
-the same `core` functions the harness ran.** The account check replays every recorded
+### Four audits read a run's account, counts, calls and eligibility from the export, on the same `core` functions the harness ran
+
+The account check replays every recorded
 authorization over the account as it stood at that position, by one adapter that
 rebuilds the transitions from the intents' and outcomes' positions, and holds what the
 run spent against its reservation and its token cap under the registered counting
@@ -2969,8 +3156,9 @@ One finding kind, a count whose method is not the caps', is unreachable while on
 method is registered, and stays because the registry is designed to grow. The four ran
 over the first export the real store and worker produced with no finding.
 
-**Whether a run's prefetch is the registered plan is checked from its trace, for every
-system and every export that decodes.** The planner and the chunking are `core`'s,
+### Whether a run's prefetch is the registered plan is checked from its trace, for every system and every export that decodes
+
+The planner and the chunking are `core`'s,
 shared with the harness, so a fault of the planner is invisible to the check and stays
 with the planner's tests. What the evaluator reconstructs by itself is the execution:
 the opening read always; the rest of the plan only when that read returned the leave
@@ -2986,7 +3174,9 @@ not plan refuses the evaluation whole. Arguments are compared with keys in one o
 the planner and the record spell an object's keys differently, and the first run of
 the real harness against the check failed on exactly that.
 
-**An evaluation is one immutable artifact over an explicit set of stored runs.** Every
+### An evaluation is one immutable artifact over an explicit set of stored runs
+
+Every
 object listed under a world's runs is in its listing with the store's version id,
 the digest of the bytes read, its cost, and exactly one reason for being in or out of
 the tables; a run that contributes no estimate was still paid for. A run is eligible
@@ -3022,8 +3212,9 @@ outcome and findings, and what the stored export gives back is not written twice
 explicit codec with a strict decoder replaces it when something reads an artifact
 back.
 
-**The evaluation names the harness inventory it was held to, and a stored object has
-one of five standings under it.** The request carries the inventory's digest; the
+### The evaluation names the harness inventory it was held to, and a stored object has one of five standings under it
+
+The request carries the inventory's digest; the
 object is read apart from the listing, its bytes must digest to the name and decode as
 an inventory of the evaluation's world, and it is refused by its key alone otherwise,
 since the decoder's own message quotes what it refused and the job's log is public.
@@ -3061,8 +3252,9 @@ store, worker, publish and inventory commands produced listed it current with co
 one of one and out of the tables for its settings, the fixtures' record naming values
 the draft registration leaves pending.
 
-**The evaluation job proves the world before it grades anything, and its log holds
-nothing sealed.** It runs by hand under its own environment and role: a required
+### The evaluation job proves the world before it grades anything, and its log holds nothing sealed
+
+It runs by hand under its own environment and role: a required
 reviewer, the main branch only, no secret, reads of the run exports, the scenario
 specs and the two truth objects, and one put under the evaluations prefix. Every
 dispatch first probes that boundary, positive controls before refusals, each refusal
@@ -3085,7 +3277,9 @@ by a probe.
 
 ## Verification
 
-**The test suite answers five distinct questions; each level owns one.** The
+### The test suite answers five distinct questions; each level owns one
+
+The
 inherited suite was unit-dominant with an unlabeled integration layer and nothing
 end-to-end; this project names the levels because it has real external systems and a
 real PostgreSQL.
@@ -3109,7 +3303,9 @@ they drift without a signal. Coverage is measured, never gated: the number shows
 where the unit layer is thin, and a threshold only invites theater. PostgreSQL runs
 as a CI service from the first commit, so the pattern exists when the code arrives.
 
-**The eval is not a test.** The golden-set harness with real models is the project's
+### The eval is not a test
+
+The golden-set harness with real models is the project's
 end-to-end evidence, and it is an experiment: preregistered design, a budget,
 baselines, uncertainty reported, its output a finding rather than a green check. It
 lives in its own tooling, and the suite's only contact with it is the agent-smoke
@@ -3119,8 +3315,9 @@ the project exists to demonstrate. **Structural laws are tests**: the import law
 the module ranks ship as pytest tests, the sibling project's import-graph test being
 the precedent.
 
-**The baseline inherits the sibling project where it proved out and improves where
-it was thin.** Inherited: the `uv_build` backend, src layout, locked sync in CI,
+### The baseline inherits the sibling project where it proved out and improves where it was thin
+
+Inherited: the `uv_build` backend, src layout, locked sync in CI,
 ruff at 100 columns, pyright strict over `src` and `tests`, doctests, the two-stage
 Dockerfile with a provenance-or-refuse version guard and a non-root runtime, a
 production Compose with no `build:`, and the check, image, deploy pipeline behind an
@@ -3129,7 +3326,9 @@ in CI so a module that fails to import fails the push; a `justfile` whose `check
 recipe is the fast subset of the CI gate; the pre-commit framework so a fresh clone
 is scanned; Compose health checks; the deploy transport SSM, not SSH.
 
-**The image waits on what the image ships; the rest runs beside it.** The `check` job
+### The image waits on what the image ships; the rest runs beside it
+
+The `check` job
 (lint, types, the unit level with doctests, integration against the PostgreSQL service,
 the docs build) is the gate the image and the deploy wait for; the generator's slow
 sweeps and the crash matrix run on every push as jobs of their own and gate nothing.
@@ -3158,6 +3357,8 @@ attempt 2 re-ran every job, and the latest-attempt listing names the five at att
 The deploy carries the manifest digest the image job recorded and the host pulls the
 image by it, giving it the commit's tag locally, so a tag the registry moved cannot
 reach the host; the fake-binary tests cover both guards' refusals.
+
+### A change to the run's host path is smoked in production on the rules-only run before its first model dispatch
 
 **A change to the run's host path is smoked in production on the rules-only run before
 its first model dispatch** (ruled at the first live run's close as a laptop rehearsal,
@@ -3188,7 +3389,9 @@ re-running and inventory listing seven attempts.
 
 ## The deployment the evidence is served from
 
-**The hybrid split.** The application runs on AWS; Frappe HR stays on the existing
+### The hybrid split
+
+The application runs on AWS; Frappe HR stays on the existing
 netcup box. Frappe is a heavy, stateful, multi-process system used *as* a realistic
 HRIS; nothing about hosting it on a hyperscaler adds to the product, while cheap
 persistent compute for it already exists. The application is the engineering that
@@ -3203,7 +3406,9 @@ S3 and Bedrock" is not a cloud deployment), and everything on AWS (paying to hos
 the simulation for no product reason). The hybrid's own named risk, "a VPS with a
 logo", is answered by the surrounding discipline.
 
-**Hosts consume artifacts; they never manufacture them.** Frappe HR needs a custom
+### Hosts consume artifacts; they never manufacture them
+
+Frappe HR needs a custom
 image, since no official one carries the `hrms` app, and the box's rule holds for
 every deployable: source, CI build, registry, host, the host pulling what CI built.
 The intended reference is the image's manifest digest, the one identity a registry
@@ -3215,7 +3420,9 @@ deployment definition are different artifacts. Rejected: a one-time build on the
 and builds from the workstation, a release step in an undocumented environment. What
 the rule buys is the claim that the production machine is replaceable.
 
-**The application host: one EC2 instance, one Compose stack.** A `t4g.small` runs
+### The application host: one EC2 instance, one Compose stack
+
+A `t4g.small` runs
 the application and its PostgreSQL in Docker Compose, the database on an EBS volume,
 Cloudflare in front as the only ingress, inbound restricted to Cloudflare's ranges,
 administrative access through SSM with no public SSH port. It is the cheapest
@@ -3227,7 +3434,9 @@ fifteen-minute ceiling. Self-managed PostgreSQL carries its own obligation: a
 nightly backup shipped off-host and one demonstrated restore as an exit criterion,
 since owning recovery is the price of not paying for RDS.
 
-**PostgreSQL is the application's truth; Frappe keeps its MariaDB.** Runs, events,
+### PostgreSQL is the application's truth; Frappe keeps its MariaDB
+
+Runs, events,
 tool calls, evidence references, plans, decisions and evaluation runs form a
 genuinely relational model, and the framework's checkpoints land in the same
 database so a run survives its worker. Frappe-on-PostgreSQL is the less-trodden path
@@ -3239,7 +3448,9 @@ and confound the HRIS-unavailable case with the app's own outage, and it unlocks
 better AWS shape, the ephemeral tier it would cheapen being the one where a remote
 store hurts most, for about six dollars a month.
 
-**The job seam: runs write an event log, surfaces read it.** An investigation is a
+### The job seam: runs write an event log, surfaces read it
+
+An investigation is a
 job that appends narrated events and checkpoints to PostgreSQL; the UI streams by
 reading that log, never by holding the worker's socket. The seam is justified on its
 own, since it is what makes runs resumable, auditable and replayable, and it is also
@@ -3247,8 +3458,9 @@ what makes the worker's location a deployment detail: in-process on the instance
 today, an ephemeral task later. No generic compute abstraction is built on top of
 it.
 
-**The loop runs on LangGraph, contained within the agent package, with two stores of
-explicit authority.** Ruled at the investigator milestone's entry (2026-09-20) on the
+### The loop runs on LangGraph, contained within the agent package, with two stores of explicit authority
+
+Ruled at the investigator milestone's entry (2026-09-20) on the
 five criteria the vision fixed, narrated streaming, tool orchestration, a
 human-approval step, an audit trail and resumable runs against this seam, each of
 which the framework's checkpoint, interrupt and stream primitives answer, and on the
@@ -3274,8 +3486,9 @@ the complete export from the event log alone. A failure is attributed first: a
 persistence-design failure fixes the design, which a hand-rolled loop would share; an
 integration failure reopens the framework before any further harness code.
 
-**The acceptance spike passed, so the framework ruling stands for the versions and the
-configuration it ran on (2026-10-04).** Every must-pass check held (`probes/FINDINGS.md`,
+### The acceptance spike passed, so the framework ruling stands for the versions and the configuration it ran on (2026-10-04)
+
+Every must-pass check held (`probes/FINDINGS.md`,
 the two `langgraph-spike` entries): forced tool calls and the exact tool-result string
 on both model families, streamed and not; the complete export built from the event log
 with the checkpoint tables dropped; a process killed at each of the 82 seams of a
@@ -3297,7 +3510,9 @@ export format 1 has no place for several things a real run produces (an intent w
 outcome, the approval, a second process's revision, a tool call that did not parse or
 was never dispatched, a run that raised), which the contract step's format answers.
 
-**An attempt has one writer at a time, and a claim always wins.** Ruled at the event
+### An attempt has one writer at a time, and a claim always wins
+
+Ruled at the event
 log step (2026-10-05), the design interview between the acceptance spike and the
 harness, eleven forks each read cold by an external reader before its ruling. An attempt
 is a row with a generation, a segment count and an open or closed state; the row is
@@ -3330,8 +3545,9 @@ generation and reissues. A closed attempt rejects every later append, a matching
 generation's included; an identical re-append of an event it holds is an idempotent
 receipt and the same identifier with other content raises.
 
-**An event has a dense position, a structured key and one of two envelopes, and one
-pure transition function decides what may be appended.** The position is a
+### An event has a dense position, a structured key and one of two envelopes, and one pure transition function decides what may be appended
+
+The position is a
 transactional counter on the attempt row, taken in the insert's transaction after a
 check for an existing identifier, so it is dense from one and a rollback keeps
 nothing; a database sequence was declined because a rollback keeps its increments. The
@@ -3375,8 +3591,9 @@ admission identity hash the log's own format, so a digest cited under format 3
 reproduces under the format 4 writer, pinned for the sixteen hand-built histories and
 read on the instance's thirty publications.
 
-**Admission is one transaction that reserves, creates the attempt and freezes its
-inputs, and the settlement rides the closing event.** The admitter writes the ledger's
+### Admission is one transaction that reserves, creates the attempt and freezes its inputs, and the settlement rides the closing event
+
+The admitter writes the ledger's
 reservation, the attempt row at generation zero and the admission event at position
 one as an outside producer, so a rollback leaves nothing and an admitter that dies
 after the commit leaves an attempt recovery can find; the event's timestamp is where
@@ -3412,8 +3629,9 @@ settling are one transition and no closed, unsettled state exists; a settlement 
 after the closing one was declined because closure would reject it. Open attempts are
 enumerable from the rows alone, with no checkpoint and no worker event.
 
-**A dispatch's worst case is written into its intent, the run's account is a fold over
-its events, and the shared ledger is touched at admission and closure only.** The
+### A dispatch's worst case is written into its intent, the run's account is a fold over its events, and the shared ledger is touched at admission and closure only
+
+The
 intent event holds the dispatch's worst case in pico-dollars and in tokens, in the one
 insert under the fence, so per-dispatch accounting never touches the shared ledger.
 Money and tokens are released by evidence and accounted apart, and how a dispatch is
@@ -3463,8 +3681,9 @@ development caps it is $3.25336 a model run, which the first live runs settled a
 between half a percent and 1.6 percent of; the figure is the price of never refusing an
 admitted run for money, and the freeze may tighten the caps, not the rule.
 
-**A request is authorized on an established upper bound of its input tokens, by one
-registered method, and the token cap counts logical calls.** Which token classes a cap
+### A request is authorized on an established upper bound of its input tokens, by one registered method, and the token cap counts logical calls
+
+Which token classes a cap
 counts is a registered name in a closed registry in `core`, one rule today summing
 input, output, cache read and cache write; a count is established when every counter
 the rule names is reported or is absent where the price table records that
@@ -3519,7 +3738,8 @@ ownership, a closed attempt, a frozen approval and a recorded defect. The export
 states the input bound so the arithmetic is audited, and it holds the request's digest
 and not its body, so no bound can be recomputed from an export.
 
-**A call's re-dispatch is one pure decision over its dispatches, with a fixed delay.**
+### A call's re-dispatch is one pure decision over its dispatches, with a fixed delay
+
 From a call's dispatches, the attribution table and the re-dispatch policy, one
 function in `core` gives one of five results: answered; ended as behaviour, where a
 service error the table reads as behaviour has no answer and is no infrastructure
@@ -3546,8 +3766,9 @@ says and the `agent.registered` module states, so a development export carries t
 values it ran under and no table reads it as measured. A new attempt is always an
 explicit admission request; no worker re-admits a run.
 
-**A tool call is resolved once from the log, by a result or a skip, and what is not
-proven unreached is unresolved.** The outcome event holds the response as it arrived,
+### A tool call is resolved once from the log, by a result or a skip, and what is not proven unreached is unresolved
+
+The outcome event holds the response as it arrived,
 with everything the parser needs, appended before anything parses it. What a tool call
 is, unparsed, a fact batch or undispatched for its stop reason, and what the gates
 admitted, is one pure function of the response, the frozen inputs and the permitted
@@ -3588,8 +3809,9 @@ for never supports a fact of that answer; unreachable-source state comes from du
 outcomes only. A later arm that runs tools in parallel voids this evidence and rules
 it again.
 
-**Recovery is from the log on a fresh checkpoint thread per generation, and an
-attempt's ending is one function of its log whoever closes it.** A recorded stopping
+### Recovery is from the log on a fresh checkpoint thread per generation, and an attempt's ending is one function of its log whoever closes it
+
+A recorded stopping
 defect is the ending, at its site, an operator's close included: that close finalizes
 a defect and makes no abandonment, and who closed and why the attempt failed are two
 facts both in the log. After a defect no further investigation is authorized; the
@@ -3814,7 +4036,8 @@ and every `false` statement but one a filler section's requirement the text does
 assert, which the composition excluded and the verdicts survived. What the evaluator's
 `false` class should say about a filler requirement is a ruling the close carries.
 
-**The log fixes what happened; publication fixes what evidence can be delivered.**
+### The log fixes what happened; publication fixes what evidence can be delivered
+
 Exportability never defines an attempt's ending and a reader's version never decides a
 failure category: the first proposal closed a completed attempt by defect when its
 export would not construct, and a reader fault touching every valid abandonment would
@@ -3853,8 +4076,9 @@ can read. Anywhere else that outcome is a failed publication. The instance's ref
 is not probed from the workstation, a workstation pass saying nothing about the
 instance's role; the first live publication observes it.
 
-**Jobs are commands over plain data with no queue, and three identities are kept
-apart.** Admit, work, deliver an approval, abandon, publish, write the inventory and
+### Jobs are commands over plain data with no queue, and three identities are kept apart
+
+Admit, work, deliver an approval, abandon, publish, write the inventory and
 set the threshold are each a function over a request type and a result type with a
 command-line entry, the request from the command line, the stores from the
 environment, a refusal as its message and nothing sealed in either; a later milestone
@@ -3880,8 +4104,9 @@ each pending value absent, and with no file the rules of a system that calls no 
 a run admitted under a table and a policy folds only under them, so the entry refuses
 a publish or an inventory without the file.
 
-**The inventory is one consistent snapshot of the store, identified by its content,
-and what it proves is stated.** It is read in one transaction at repeatable read, so a
+### The inventory is one consistent snapshot of the store, identified by its content, and what it proves is stated
+
+It is read in one transaction at repeatable read, so a
 closed attempt is never paired with its figures from before settlement, and built
 purely from the rows: the bound registration and the measurement scope, the ledger's
 head and entries, every attempt the store holds, of every world, in and out of scope,
@@ -3905,8 +4130,9 @@ attempt is missing from both the inventory and storage. Protection against a har
 that omits would need an observation the harness does not write, and the project has
 none; CloudWatch counts the same tokens through another path.
 
-**A run is launched by a dispatched workflow that sends its lifecycle to the instance,
-one word a send, and rides the commit it was dispatched from.** The investigate
+### A run is launched by a dispatched workflow that sends its lifecycle to the instance, one word a send, and rides the commit it was dispatched from
+
+The investigate
 workflow under the production environment runs a committed driver on the runner; each
 step is one `ssm send-command` carrying one host script in its payload, so nothing is
 fetched from anywhere the host could be lied to by, and each step is one
@@ -3979,8 +4205,9 @@ dispatched again and the driver does not; none occurred. The ledger of all 240 i
 committed beside the plan, and the phase's operational numbers are read from it and
 the runs' exports by `tally.py`, the evaluation's from the artifact by `report.py`.
 
-**The driver walks the launcher's answer and never re-sends blind; a timed-out client
-leaves its container running.** After a work send the attempt's state is read with
+### The driver walks the launcher's answer and never re-sends blind; a timed-out client leaves its container running
+
+After a work send the attempt's state is read with
 status and its next word acted on: work or recover sends work again, a recovery of an
 attempt a process left open counted against the launcher's own bound of two, stated in
 PROTOCOL and never the registered re-dispatch policy, which bounds dispatches of one
@@ -4018,8 +4245,9 @@ the attempt's history is defined before the first reported dispatch, not as the 
 of the log's claims, since an approval's resumption opens a generation that is no
 recovery.
 
-**A human approval is given on what the human read, and a closed attempt is published
-without re-running.** The review command prints the attempt's frozen review payload
+### A human approval is given on what the human read, and a closed attempt is published without re-running
+
+The review command prints the attempt's frozen review payload
 with the digest a delivery must carry, and runs only in a Session Manager session,
 which is account-private, never in a workflow log or a stored invocation's output; the
 continuation workflow takes the policy the attempt was dispatched under, delivers the
@@ -4038,8 +4266,9 @@ leaves nothing a later step or a later attempt of the run reads as the registrat
 and a Parameter Store read that fails ends the step with the CLI's own error rather
 than an empty value the container refuses for the wrong cause.
 
-**The first live dispatches found what the fakes cannot see, and the cache flips what
-the rule declines.** The fake-binary tests run every lifecycle word and every branch of
+### The first live dispatches found what the fakes cannot see, and the cache flips what the rule declines
+
+The fake-binary tests run every lifecycle word and every branch of
 the driver's walk under fakes for the cloud CLI, the container engine, the fetch and
 the ownership change, and the first four dispatches each found a class those fakes have
 no model of: the run directory root-only against the image's unprivileged user (handed
@@ -4060,7 +4289,9 @@ systems and both approval policies, each green on its first dispatch after those
 and graded in one evaluation, are the step's record (the probes' `step-14` entry); they
 are development runs on a development world and no table reads them.
 
-**The investigator's runtime policy keeps the fault triad's meanings.** A missing
+### The investigator's runtime policy keeps the fault triad's meanings
+
+A missing
 record is evidence; the first unreachable source marks that source unreachable for
 the run and calls stop, facts already read standing; an unreadable leave record
 degrades the run, everything downstream unknown. A malformed record propagates and
@@ -4072,7 +4303,9 @@ provider fault after the harness's registered re-dispatches fails the run by
 infrastructure, counted apart, the SDK itself retrying nothing; a response that arrives and refuses, emits no claims or emits output the codec
 rejects is system behaviour, graded with its omissions.
 
-**The executor trust boundary, if post-approval execution ships.** The writes run in
+### The executor trust boundary, if post-approval execution ships
+
+The writes run in
 a deterministic executor Lambda, not a second agent, with its own IAM role that is
 the sole principal able to read the write credentials and with no model-invocation
 permission at all; input is the human-approved action manifest, output the exact
@@ -4088,7 +4321,9 @@ credential on Frappe and Jira, by code on Calendar) and the evaluator's identity
 ruled on their own. The paragraph stands as the
 candidate architecture, entered only if a later milestone brings execution back.
 
-**The surrounding AWS set, and nothing more.** All of it under Terraform in the
+### The surrounding AWS set, and nothing more
+
+All of it under Terraform in the
 platform repository, this repository consuming the contract values it publishes: IAM
 roles; GitHub Actions deploying through OIDC federation, the trust policy pinned to
 the repository and the production environment through the ID-based subject GitHub
@@ -4111,7 +4346,9 @@ ruling, Frankfurt end to end, and the cross-region cache misses the probe observ
 are an `eu.` fact that `global.` would only widen. Model choice for the agent waits
 for the agent measurements.
 
-**The netcup box was upgraded in place, once, to the tariff above the need.** Lite 3
+### The netcup box was upgraded in place, once, to the tariff above the need
+
+Lite 3
 (8 vCPU / 16 GB) over Lite 2 (4 vCPU / 8 GB): 8 GB is Frappe's recommended footprint
 alone, the box's own design is one VPS running every project, and downgrades do not
 exist while each upgrade resets the term, so headroom is bought once at box level
@@ -4123,7 +4360,9 @@ limits on the Frappe stack and a swapfile keep the heaviest tenant from starving
 neighbour. A second box was rejected as two proxies, two firewalls and two backup
 paths for no benefit.
 
-**Cost envelopes are stated and tracked.** Persistent spend excluding tokens is the
+### Cost envelopes are stated and tracked
+
+Persistent spend excluding tokens is the
 box delta plus roughly twenty dollars a month of always-on AWS at list prices for
 the provisioned shape (the account holds no free-tier allowance, so these are the
 real rates), the instance line removable by stopping it between working days. Model
@@ -4155,8 +4394,9 @@ arms and evaluator executions with an admission stop at a preregistered threshol
 the ten-run reforecast reading it, since a per-run cap bounds one run and not the
 milestone. The stack's monthly budget stays the outer alarm.
 
-**The Frappe hostnames sit behind Cloudflare Access; the agent's own hostname stays
-ungated until the demo.** The generator's first write from the cloud is a cross-host
+### The Frappe hostnames sit behind Cloudflare Access; the agent's own hostname stays ungated until the demo
+
+The generator's first write from the cloud is a cross-host
 call over the public edge, so the service token joins the secrets ceremony and the
 Frappe login stops being scannable; the agent's hostname serves a hello page until
 the demo milestone and that demo must be public, so the question returns at that
@@ -4174,7 +4414,9 @@ the demo milestone's entry or observed abuse before it: Access gives the token-g
 property without a tunnel or a third control plane, and nothing in the investigator
 milestone needs a hostname to be unreachable.
 
-**As landed (2026-11-03, the demo milestone's step 17).** The interim ended on
+### As landed (2026-11-03, the demo milestone's step 17)
+
+The interim ended on
 2026-11-03: one Access application over the three Frappe hostnames with a Service Auth
 policy for the token `leave-agent-machine-clients` and an Allow policy for the operator
 by one-time PIN, and a second, path-scoped application with a Bypass on the ping method
@@ -4202,7 +4444,9 @@ Accepted 2026-11-06 on the validator's and the instance's paths (FINDINGS
 the token, the instance probe read the world through the shared wiring with the pair
 from Parameter Store; the generator's path is recorded at its next generation.
 
-**The demo milestone's surface, ruled at its entry (2026-10-19).** The exit is a
+### The demo milestone's surface, ruled at its entry (2026-10-19)
+
+The exit is a
 public, replay-first demo of the golden world, M1's audited world whose recipe is
 public: understandable reports over finished runs, evidence self-contained per
 reference kind, readable audit trails, an accurately labelled results page for the
@@ -4218,7 +4462,9 @@ plan (no vocabulary, no state), any change to the investigator (the registration
 rule: a change on the measured world is exploratory, a confirmatory claim needs a
 held-out world), the arms, the conversation.
 
-**Publishability is one predicate on every read.** The surface serves the one world
+### Publishability is one predicate on every read
+
+The surface serves the one world
 version its configuration names (an allowlist of one) when the cache serves it, and an
 attempt only when an app-owned table of publishable attempts holds it, a row written by
 the operator for each replay and by the public start command in its admission
@@ -4447,7 +4693,9 @@ limits and the bound to the
 committed reading, so a change to either starts with a new capture; the worker's reading
 extends the baseline at its step (FINDINGS, memory-baseline).
 
-**The shell and the report view.** FastAPI with server-side templates, one process on
+### The shell and the report view
+
+FastAPI with server-side templates, one process on
 the instance behind the platform's proxy; Pydantic parses HTTP input only, the plain
 types and their codecs authoritative; a read model returns public view data; two narrow
 commands (start a run, decide on a plan) carry their own admission; store access is
@@ -4470,7 +4718,9 @@ waiting stream holds no thread or transaction; replays show the same lines as a
 timeline, never paced; token streaming is out for a product reason, the event stream
 gives the progress the product promised and partial model text is not report content.
 
-**The live path.** A long-running single-flight worker service runs the existing
+### The live path
+
+A long-running single-flight worker service runs the existing
 commands, provisional on a blocked-work timeout probe with a supervised child as the
 fallback; one execution slot in the store, locked by every claim from either path,
 released at segment end or by reconciliation; no automatic recovery of investigation
@@ -4700,7 +4950,9 @@ cut is not taken. The worker's idle resident size read 171.7 MiB against 128.1 b
 any attempt, unattributed beyond the memo's sub-MiB share and inside the limit; the
 parent-plus-child headroom under a live run is the final smoke's sampler reading.
 
-**Hosting, as the demo found it.** The instance stays on; the ephemeral-compute probe
+### Hosting, as the demo found it
+
+The instance stays on; the ephemeral-compute probe
 is declined unrun on scope (the surface is the deliverable; the comparison of always-on
 against per-run compute is not established and is recorded as unknown), its criteria
 kept in the future-work item. The budget by hand: the instance, the volume and the
@@ -4773,7 +5025,9 @@ using the surface unassisted, is skipped indefinitely, and the milestone's exit 
 with the crawl held; the claims the repository makes shrink to match (FINDINGS
 `public-switch`).
 
-**Platform-side at the demo's entry.** The agent's hostname goes public after a
+### Platform-side at the demo's entry
+
+The agent's hostname goes public after a
 disclosure sweep of the tree and the pages, behind the free plan's WAF and a rate limit
 on the start route, with a deployed probe deciding the proxy's streaming behaviour.
 Access in front of the Frappe hostnames, not landed in the investigator milestone,
@@ -4790,6 +5044,8 @@ with Access is the standing answer for the machine clients; a tunnel would have 
 second window with live runs off and a repeated smoke for nothing the milestone claims.
 It returns on a need that edge does not meet: a second tenant, a finding against the
 edge, or the service token's renewal becoming a burden.
+
+### Access landed 2026-11-03
 
 **Access landed 2026-11-03**, after the live path's acceptance of 2026-11-01 and before
 the final smoke, as the Frappe hostnames passage of the investigator milestone records
