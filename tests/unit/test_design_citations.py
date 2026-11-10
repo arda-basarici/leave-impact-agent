@@ -8,9 +8,9 @@ more in module docstrings were found only when the citations were first enumerat
 cited title is a string DESIGN either holds or does not, which a test can ask of every
 tracked file.
 
-What is held: the quoted forms. ``DESIGN, "X"``, ``DESIGN's "X"``, a short lower-case
-lead-in between the two (``DESIGN, the closed-world rule in "X"``), and a further
-``and "Y"`` after any of them. A citation resolves when its words are a title's words, or
+What is held: the quoted forms. ``DESIGN, "X"``, ``DESIGN: "X"``, ``DESIGN's "X"``, a
+short lower-case lead-in between the two (``DESIGN, the closed-world rule in "X"``), and
+a further ``and "Y"`` after any of them. A citation resolves when its words are a title's words, or
 at least three of them in a row inside one title, so a long decision name may be cited by
 its opening clause. The titles are DESIGN's section and subsection headings and every
 phrase it sets in bold. Quotation marks, backticks and case are ignored on both sides,
@@ -30,11 +30,12 @@ from pathlib import Path
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 
-DESIGN_DOCUMENTS: tuple[str, ...] = ("DESIGN.md",)
-"""The documents a citation of DESIGN may resolve in."""
+DESIGN_DOCUMENTS: tuple[str, ...] = ("DESIGN_RECORD.md",)
+"""The documents a citation of DESIGN may resolve in: the frozen design record, which
+holds every decision under its own heading."""
 
 UNSCANNED: dict[str, str] = {
-    "DESIGN.md": "the cited document itself",
+    "DESIGN_RECORD.md": "the cited record itself, frozen",
     "REPORT_NOTES.md": "append-only, each entry true on its date",
     "probes/FINDINGS.md": "append-only, each entry true on its date",
     "VISION.md": "the founding snapshot, frozen before DESIGN had sections",
@@ -43,7 +44,7 @@ UNSCANNED: dict[str, str] = {
 """Tracked files whose citations are not held, each with its reason."""
 
 CITATION = re.compile(
-    r"DESIGN(?:\.md)?(?:'s|,)?\s+"
+    r"DESIGN(?:\.md)?(?:'s|,|:)?\s+"
     r"(?:[a-z][\w-]*\s+){0,6}"
     r'"(?P<first>[^"]+)"'
     r'(?P<more>(?:\s+and\s+"[^"]+")*)'
@@ -169,6 +170,7 @@ def test_a_citation_is_read_in_each_form_it_is_written_in() -> None:
         "Verification",
     ]
     assert citations('see DESIGN.md, "Sealing and the audit"') == ["Sealing and the audit"]
+    assert citations('never a gate (DESIGN: "Verification").') == ["Verification"]
 
 
 def test_a_citation_is_read_across_a_wrapped_comment() -> None:

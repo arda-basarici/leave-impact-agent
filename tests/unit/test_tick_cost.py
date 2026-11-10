@@ -1,6 +1,6 @@
 """The tick-cost probe's committed captures (`probes/captures/tick-cost/`, the live pages
-step) and what was written from them: the stream module's docstring and DESIGN's memory
-passage cite the whole-tick, idle-tick and per-event figures the probe measured, and this
+step) and what was written from them: the stream module's docstring and the design record's
+memory passage cite the whole-tick, idle-tick and per-event figures the probe measured, and this
 test recomputes each from the captures through the probe's own reducer, so a figure in
 either text has the capture behind it and neither moves alone (the memory baseline's test
 is the precedent)."""
@@ -73,10 +73,10 @@ def test_the_cited_figures_are_the_captures(
         "1.8 to 5.2 ms",
     )
     docstring = stream.__doc__ or ""
-    design = (ROOT / "DESIGN.md").read_text(encoding="utf-8")
+    record = (ROOT / "DESIGN_RECORD.md").read_text(encoding="utf-8")
     for text in (whole_text, idle_text, event_text):
         assert text in docstring, f"the stream module does not cite {text!r}"
-        assert text in design, f"DESIGN does not cite {text!r}"
+        assert text in record, f"the design record does not cite {text!r}"
     events = [a["events"] for a in attempts]
     assert f"{min(events)} to {max(events)} events" in docstring
 

@@ -5,7 +5,8 @@ Four sources, each named on its pin. ``results`` is the committed public results
 through the package's own reader, which holds every statistical figure and every cell's
 cost. ``registration`` is the bound registration file, which holds the corpus levels, the
 caps, the roles' settings and the budget. ``findings`` and ``design`` are passages of
-FINDINGS and DESIGN matched by exact text: the operational counts (calls stopped at the
+FINDINGS and the design record, DESIGN_RECORD, matched by exact text: the operational
+counts (calls stopped at the
 output maximum, observed input tokens, calls per run) whose script of record needs
 bucket access and cannot run at a build, and the world's counts the audit records. A
 text-matched pin asserts that the report agrees with the recorded passage and does not
@@ -630,11 +631,11 @@ def pin_table(
 
 def load_pins(repository: Path) -> Mapping[str, Pin]:
     """The pin table over the tree: the committed results by package name, the
-    registration, FINDINGS and DESIGN by path under ``repository``."""
+    registration, FINDINGS and the design record by path under ``repository``."""
     registration_path = repository / "preregistration" / "registration.json"
     registration = cast("Mapping[str, object]", json.loads(_read(registration_path)))
     findings = _read(repository / "probes" / "FINDINGS.md")
-    design = _read(repository / "DESIGN.md")
+    design = _read(repository / "DESIGN_RECORD.md")
     return pin_table(committed_results(), registration, findings, design)
 
 

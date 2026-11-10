@@ -1,4 +1,10 @@
-# DESIGN — leave-impact-agent
+# DESIGN RECORD — leave-impact-agent
+
+*The complete design record of the first three milestones, frozen on 2026-11-10 and no
+longer edited. [DESIGN](DESIGN.md) is the current design and wins on disagreement, as do
+[ARCHITECTURE](ARCHITECTURE.md) and the code. Each passage describes the design as it
+stood when it was written, and some have since been overtaken. The text below is as it
+stood at the freeze, its opening paragraph included.*
 
 What is being built and why: the decisions and their reasoning, as a narrative
 snapshot of the current design. Edited in place; the chronological trail lives in
