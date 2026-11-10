@@ -15,7 +15,7 @@ make the two disagree ("same team" against "relevant component"). Two absences l
 alike and are not: ``skills`` is ``None`` when the world has no skills record for the
 person — the missing-information case, which grades as unknown — and an empty tuple
 when the record exists and lists nothing, which grades as non-viable (DESIGN, the
-closed-world rule in "The answer-key contract"). ``None`` means absent in the world;
+closed-world rule in "Absence is a record of its own"). ``None`` means absent in the world;
 an adapter that could not read a field raises, and that failure is a run condition,
 never a ``None``.
 """

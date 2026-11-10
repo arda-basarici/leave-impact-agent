@@ -1,7 +1,7 @@
 """The source-dependence probe: which sources does a class's key require, and does the set
 rest on a source none of the class's own artifacts plant? Each remaining Tier 2 and 3
-class runs it before the step 8 carry closes at 15.5 (DESIGN, "The responsibility class,
-ruled", the second ruling; `probes/FINDINGS.md`, `source-dependence`).
+class runs it before the step 8 carry closes at 15.5 (DESIGN, "Required-source derivation
+is semantic, not provenance-based"; `probes/FINDINGS.md`, `source-dependence`).
 
 It constructs the class's shape on the unit fixture organization and prints the sealed
 key's required sources and verdicts, then re-derives the required set with a foreign

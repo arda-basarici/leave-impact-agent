@@ -2,8 +2,8 @@
 the reason.
 
 Zero facts mean false only after the evidence domain has been fully observed, and a
-gap blocks that inference. That sentence is the whole rule (DESIGN, "The rules in
-code"); the order below is its operational form, read over a ``FactView`` that already
+gap blocks that inference. That sentence is the whole rule (DESIGN, "Closure answers
+in a fixed order"); the order below is its operational form, read over a ``FactView`` that already
 holds only what this run can see:
 
 1. a positive fact → known true, carrying the facts that established it, because the

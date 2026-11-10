@@ -1,8 +1,8 @@
 """The generator version, the interpreter it was recorded under, and the vocabulary fingerprint.
 
 Semantic generation is identified by three inputs — the seed, the parameters and the
-generator version (DESIGN, "The generator: pure specification, materialized prose,
-frozen world"). The first two are a caller's; the third is this code's own, stamped onto
+generator version (DESIGN, "An organization is identified by three
+inputs"). The first two are a caller's; the third is this code's own, stamped onto
 every specification it produces, because a version a caller could pass would be
 provenance a caller could forge. The rule the version exists for: any change that can
 alter the organization a seed produces — the drawing algorithm, a default, a table in

@@ -2,8 +2,9 @@
 beyond structured fields.
 
 Tier 2 tests whether an investigator reads what the structured fields do not say (DESIGN,
-"The first golden set"; the class shapes under the step 15 rulings). ``free_text_qualification``
-is the first: a release meeting the leaver attends falls inside the leave under a
+"Thirty scenarios, ten per tier"; the class shapes under the step 15 rulings).
+``free_text_qualification`` is the first:
+a release meeting the leaver attends falls inside the leave under a
 scenario-owned policy clause that requires a skill, and the one person authored viable
 holds that skill nowhere on the HR record — it is evidenced solely in a comment they wrote
 on their own ticket, a part a model writes under a brief. A second candidate whose record

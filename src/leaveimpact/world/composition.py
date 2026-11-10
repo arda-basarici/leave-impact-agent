@@ -3,7 +3,7 @@ accepted prose.
 
 Materialization is the one stage of generation that is not a function of the seed, and it
 runs whole before any byte of the world is fixed (the step 14 rulings in DESIGN,
-"Materialization"). Its output is plain data — one body of text per pending target and the
+"Truth before prose"). Its output is plain data — one body of text per pending target and the
 record of how each was accepted — and ``compose`` is what turns that data and the semantic
 world into a ``WorldSpec``: each comment target becomes a ``Comment`` whose text is the
 canonical prefix, rendered from the target's own date and author, joined to the body the

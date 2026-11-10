@@ -4,7 +4,7 @@ domain.
 A predicate names one kind of fact about one kind of subject — ``has_skill`` about an
 employee, ``owns_work_item`` about a work item — and the registry declares four things
 about it that the rules read as data rather than hold as their own copies (DESIGN, "The
-answer-key contract" and "The rules in code"). The *value spec* is the shape of what
+fact base is the rules' only world"). The *value spec* is the shape of what
 the fact says — a team reference, a date, a requirement — which a fact validates
 against at construction and the codec writes as the value's JSON tag; whether the
 predicate is *multi-valued* (one fact per skill, per attendee, per leave) or holds one

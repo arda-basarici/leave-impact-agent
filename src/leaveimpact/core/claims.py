@@ -1,7 +1,7 @@
 """The claim vocabulary: six typed claims, their grading keys, and the well-formed claim set.
 
-The report and the answer key speak this one vocabulary (DESIGN, "The answer-key
-contract"): impacts say what the leave affects, constraints what a valid response must
+The report and the answer key speak this one vocabulary (DESIGN, "What a valid
+answer is"): impacts say what the leave affects, constraints what a valid response must
 obey, candidate assessments who could satisfy a need, coverage actions what the plan
 does, conflicts and unknowns where the evidence chain could not be established. Each
 claim computes its *grading key* from its own fields — the identity of the world fact

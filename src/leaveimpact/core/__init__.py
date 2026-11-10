@@ -17,7 +17,7 @@ system-of-record authority table that resolves conflicting observations, viabili
 a person for a need, constraint checks, and the reading pass that asks grounding and
 viability of each impact together. The investigator's deterministic core and the
 evaluator call the same rule functions from here, which makes that sharing visible
-instead of duplicated (the answer-key contract in DESIGN says why sharing rules is
+instead of duplicated (DESIGN, "The pure rules live in core", says why sharing rules is
 safe and sharing code between generator and evaluator is not). Vendor-neutral ports
 that both the generator and the investigator consume sit here too; an abstraction
 that describes how one vendor works stays inside that vendor's adapter.

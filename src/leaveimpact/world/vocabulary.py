@@ -3,8 +3,8 @@
 The vocabulary is generator semantics, not decoration. Every employee, city, skill, team
 and component label a world can contain comes from these tables, which is what makes
 two properties hold at once: the same seed yields the same organization, and the
-namespace guard on materialized prose (DESIGN, "The generator: pure specification,
-materialized prose, frozen world") has a finite, known set of words to check against.
+namespace guard on materialized prose (DESIGN, "An organization is identified by
+three inputs") has a finite, known set of words to check against.
 A change here that can alter a generated world therefore bumps ``GENERATOR_VERSION``;
 ``vocabulary_digest`` against the value recorded in ``world.version`` makes any edit fail
 a test until that file is touched, so the version bump is visible in the same diff
