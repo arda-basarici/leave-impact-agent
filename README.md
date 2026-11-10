@@ -23,8 +23,10 @@ yourself?**
 
 An LLM agent reads an organization's HR system, issue tracker, calendar and
 documents, works out which deadlines and meetings a leave affects and who can
-cover them, and drafts a coverage plan for a person to approve. Every claim in
-the plan links to the record it was read from. The model reports facts and
+cover them, and drafts a coverage plan for a person to approve. Each fact the
+plan rests on links to the record it was read from, and a conclusion that
+nothing exists is drawn only where every structured place the fact could live
+was read. The model reports facts and
 quotes the text each one came from, and deterministic rules draw every
 conclusion from those facts. The systems are real instances of Frappe HR, Jira
 and Google Calendar. The organization inside them is synthetic and was
@@ -113,12 +115,15 @@ flowchart LR
 **prefetch**: the structured records of the HR system, the tracker and the
 calendar, read once and then fixed for the run · **read**: the model reads in
 turns, through tools scoped to its role and a full-text search over document
-sections · **state facts**: one forced final call in which the model lists what
-it read, each fact with its quote · **rules conclude**: deterministic rules
+sections · **state facts**: the model states what a text asserts, each fact
+with its quote, in any reading turn and in a final call, when the run reaches
+one, where the fact tool alone is forced · **rules conclude**: deterministic rules
 compose every claim and the coverage plan from the facts that pass the checks ·
 **approval**: a live run waits for its visitor to approve or decline. A run
 with no person present, such as a replay, records an automatic approval, and
-the log marks it as automatic.
+the log marks it as automatic. An approval is recorded in the event log and
+nothing consumes it yet: carrying a plan out in Jira, the calendar or the HR
+system is out of scope.
 
 The loop is a LangGraph graph with its checkpoint in PostgreSQL. Every step is
 also an event in one log, and that log is what recovery, the audit trail and
@@ -148,7 +153,7 @@ frozen. The result above comes from it, and it stays sealed.
 |---|---|---|
 | the world, closed 2026-09-19 | a generator that builds the organization and thirty scenarios from a seed, writes them into live Frappe HR, Jira and Google Calendar, and seals the answer key where the application cannot read it; an independent validator; a hand-audit protocol | the golden world passed a hand audit of all thirty scenarios with no defect found in it |
 | the investigator, closed 2026-10-17 | the agent on LangGraph over an event log, three baselines, an evaluator that grades claim by claim, and the registration | **24 of 30 against full context's 14** at the padded level; 240 registered runs for $9.96 of model spend |
-| the demo, closed 2026-11-09 | the public site on one small AWS instance: thirty replays read from the runs' own records, the results page, and live runs a visitor starts and then approves or declines | live runs are on and capped; six have settled for $0.41 in all |
+| the demo, closed 2026-11-09 | the public site on one small AWS instance: thirty replays read from the runs' own records, the results page, and live runs a visitor starts and then approves or declines | live runs are on and capped; six had settled for $0.41 in all at the close |
 | the conversation, next | a manager questions an investigation, with answers grounded in the same evidence and evaluated on the same scenarios | not started |
 
 ## What was measured, and where each number stops
@@ -179,18 +184,20 @@ and have not been reconciled against the provider's bill.
   packages at all. The repository was searched for the sealed world's
   identifying hashes before the site went public, and the 124 public pages
   were crawled for them once it was up.
-- **The model cannot conclude.** It reads, then lists facts with their quotes
-  in one forced final call. The rules compose every claim and the plan from
-  the facts that are admitted.
+- **The model writes no verdict.** It reads and states facts with their quotes.
+  The rules compose every claim and the plan from the facts that are admitted.
+  The admission checks establish where a statement came from; they do not show
+  that the text entails it.
 - **One event log is the authority.** Recovery after a crash, the audit trail,
   the run's export and the public timeline are all reads of the same log in
   PostgreSQL. A crash matrix in CI kills child processes at named points against
-  the real database.
+  the real database, in a job of its own that gates no deploy.
 - **The measurement was registered first.** The procedure, the caps and the
   analysis were frozen at a commit before the measurement world was drawn. The
   evaluator runs under its own identity, reads exports and never re-reads a
-  vendor. The report's tables are built from the committed results by a pinned
-  build.
+  vendor. The evaluation was produced by an evaluator two files different from
+  the registered one, which the artifact discloses by name. The report's tables
+  are built from the committed results by a pinned build.
 - **Spend is admitted before it is made.** A run takes its reservation against
   a ledger in the transaction that admits it. Visitors get five runs a day and
   two an address, one attempt on the host at a time, under a ceiling set by
