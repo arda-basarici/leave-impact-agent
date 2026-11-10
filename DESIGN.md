@@ -9,6 +9,22 @@ the record.
 
 *Snapshot at the demo milestone's close · last updated 2026-11-10.*
 
+[The design in one page](#the-design-in-one-page) · [Objective](#objective) ·
+[What a valid answer is](#what-a-valid-answer-is) ·
+[One organization, many scenarios](#one-organization-many-scenarios) ·
+[Truth before prose](#truth-before-prose) ·
+[The classes that leave the easy path](#the-classes-that-leave-the-easy-path) ·
+[Sealing and the audit](#sealing-and-the-audit) ·
+[Keeping the benchmark out of the product](#keeping-the-benchmark-out-of-the-product),
+which holds
+[the registration](#one-committed-preregistration-file-precedes-the-first-reported-run-and-is-cited-by-commit-in-every-evaluation-artifact)
+and
+[the measured result](#the-measurement-world-is-generated-by-the-tree-from-a-seed-nobody-has-seen) ·
+[Verification](#verification) ·
+[The deployment the evidence is served from](#the-deployment-the-evidence-is-served-from) ·
+[Scope & non-goals](#scope--non-goals) · [Future work](#future-work-curated) ·
+[Open questions](#open-questions)
+
 ## The design in one page
 
 An agent's answer about a leave can only be graded if the right answer is known, so the
@@ -37,10 +53,10 @@ flowchart LR
 | Model-written prose | accepted only when it carries every required fact and none its brief does not allow, under three automated guards, one a second model family | a lexicon check: "led the Kafka migration" and "has never worked with Kafka" pass the same vocabulary test | [Truth before prose](#truth-before-prose) |
 | Failed generations | discarded and retried, never patched | patching: a patched artifact's provenance is model output plus a fix plus perhaps a human edit | [Truth before prose](#truth-before-prose) |
 | The answer key | in a bucket the application's role has no capability over, probed on every deploy | a generator role the instance could assume: a role the instance may assume is a role the application can obtain | [Sealing and the audit](#sealing-and-the-audit) |
-| The model's job | it states quoted facts, and shared rules conclude | the model writing the report: 0 of 6 in a one-day probe on a throwaway world, a direction more than a result | [Keeping the benchmark out of the product](#keeping-the-benchmark-out-of-the-product) |
-| The tool surface | typed tools generated from read ports by a role-scoped registry | MCP: one in-process consumer of a small owned read surface gains nothing from a protocol | [Keeping the benchmark out of the product](#keeping-the-benchmark-out-of-the-product) |
-| The measurement | a committed registration, frozen before the measurement world existed, with one primary comparison | reading a tier or a secondary comparison as a win: no claim of success is made from them | [Keeping the benchmark out of the product](#keeping-the-benchmark-out-of-the-product) |
-| The agent loop | LangGraph inside the agent package, the event log as the authority and the checkpoint a cursor | a hand-rolled loop, which was the lean | [The deployment](#the-deployment-the-evidence-is-served-from) |
+| The model's job | it states quoted facts, and shared rules conclude | the model writing the report: 0 of 6 in a one-day probe on a throwaway world, a direction more than a result | [The model states facts and the shared rules conclude](#the-model-states-facts-and-the-shared-rules-conclude-for-every-model-system) |
+| The tool surface | typed tools generated from read ports by a role-scoped registry | MCP: one in-process consumer of a small owned read surface gains nothing from a protocol | [A tool is one typed specification over one read-port method](#a-tool-is-one-typed-specification-over-one-read-port-method-constructed-by-a-declared-registry-mcp-was-weighed-and-not-chosen) |
+| The measurement | a committed registration, frozen before the measurement world existed, with one primary comparison | reading a tier or a secondary comparison as a win: no claim of success is made from them | [One committed preregistration file precedes the first reported run](#one-committed-preregistration-file-precedes-the-first-reported-run-and-is-cited-by-commit-in-every-evaluation-artifact) |
+| The agent loop | LangGraph inside the agent package, the event log as the authority and the checkpoint a cursor | a hand-rolled loop, the leaning before the weighing | [The deployment](#the-deployment-the-evidence-is-served-from) |
 | Recovery | from the log, on a fresh checkpoint thread per generation, accepted by a crash matrix | a shared checkpoint thread: a checkpoint also holds pending task writes the framework uses to skip tasks | [The deployment](#the-deployment-the-evidence-is-served-from) |
 | Hosting | the application on AWS, Frappe HR on the self-managed server | everything on one side: no cloud evidence, or paying to host the simulation for no product reason | [The deployment](#the-deployment-the-evidence-is-served-from) |
 
@@ -1340,12 +1356,12 @@ abstraction is built on top of it.
 
 ### The loop runs on LangGraph, contained within the agent package, with two stores of explicit authority
 
-The framework was ruled on the five criteria the vision fixed: narrated streaming, tool
+The framework was ruled on the five criteria the founding [VISION](VISION.md) fixed: narrated streaming, tool
 orchestration, a human-approval step, an audit trail and resumable runs against this
 seam, each of which the framework's checkpoint, interrupt and stream primitives answer.
 The positioning this project serves, where a named framework is the most frequent gap,
 was part of the weighing. A hand-rolled loop (every mechanism owned, no dependency
-family) was the lean and was rejected on that weighing.
+family) was the leaning before the weighing and was rejected on it.
 
 The read ports, the tool registry, the claim vocabulary and this seam know nothing of
 the framework. The checkpoint is the execution cursor within one process and nothing
@@ -1565,7 +1581,8 @@ is recorded: a day of admissions and spend.
 > live database, so it proves the archive and not a fresh host.
 >
 > Two things are recorded short of the entry's wording. The exit was amended to the URL
-> with the disclosure crawl held on 124 pages, the stranger test skipped by ruling. And
+> with the disclosure crawl held on 124 pages, the planned test with a stranger skipped
+> by ruling. And
 > one criterion of the final smoke was not met as written, the delivery of the active
 > phase's frames at a p95 under 2 s reading 2.0001 and 2.09 s on a measure whose clock
 > bound is 1.3 to 1.5 s. The figures are in `probes/FINDINGS.md` (`replay-set`,
