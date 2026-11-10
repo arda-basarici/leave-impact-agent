@@ -12,9 +12,9 @@ An LLM agent reads an organization's HR system, issue tracker, calendar and docu
 works out which deadlines and meetings a leave affects and who can cover them, and
 drafts a coverage plan for a person to approve.
 
-[The life of a run](#the-life-of-a-run) · [Design shape](#design-shape) ·
-[The life of a world](#the-life-of-a-world) · [Where state lives](#where-state-lives) ·
-[What runs where](#what-runs-where) ·
+[The life of a run](#the-life-of-a-run) · [What runs where](#what-runs-where) ·
+[Where state lives](#where-state-lives) · [Design shape](#design-shape) ·
+[The life of a world](#the-life-of-a-world) ·
 [Key abstractions and seams](#key-abstractions-and-seams) ·
 [Module responsibilities](#module-responsibilities) · [Tests](#tests) ·
 [Structural stories](#structural-stories) ·
@@ -26,19 +26,48 @@ drafts a coverage plan for a person to approve.
 
 ```mermaid
 flowchart TD
+    subgraph LIVE["the live path, on the instance"]
+        ADM["admission, one transaction<br/>the attempt row · the first event · a reservation against the shared ledger's threshold"]
+        ADM --> CL["the claim: one execution slot<br/>the worker service, or the operator's lifecycle"]
+        CL --> WO["one work order, the same for both<br/>prefetch → prepare → model ⇄ tools → approval → terminal"]
+        WO --> WAIT["the plan waits for a human<br/>a visitor's POST to the replay's decision route · the operator's deliver-approval · the automatic policy · the sweeper past a deadline"]
+        WAIT --> CLOSE["the closing<br/>an ending from the closed vocabulary · the settlement on the ledger"]
+        CLOSE --> PAGES["the pages<br/>report · audit trail · narration · ledger"]
+        CLOSE --> PUB[("publication, created once<br/>the export · the harness inventory")]
+    end
+    subgraph OFFLINE["the offline path: a dispatched evaluation, then a commit"]
+        EV["evaluator, its own job and principal<br/>grades every stored export against the sealed world"]
+        EV --> ART[("the evaluation artifact<br/>beside the key in the truth bucket")]
+        ART -->|"its aggregates, by a commit"| RES(["results: a committed public file<br/>the results page renders"])
+    end
     VS(["a visitor's POST /start"]) -->|"app.start, under the log's session lock"| ADM
     OP(["an operator's dispatch"]) -->|"launch plan, inside the image"| ADM
-    ADM["admission, one transaction<br/>the attempt row · the first event · a reservation against the shared ledger's threshold"]
-    ADM --> CL["the claim: one execution slot<br/>the worker service, or the operator's lifecycle"]
-    CL --> WO["one work order, the same for both<br/>prefetch → prepare → model ⇄ tools → approval → terminal"]
-    WO --> WAIT["the plan waits for a human<br/>a visitor's POST to the replay's decision route · the operator's deliver-approval · the automatic policy · the sweeper past a deadline"]
-    WAIT --> END["the closing<br/>an ending from the closed vocabulary · the settlement on the ledger"]
-    END --> PAGES["the pages<br/>report · audit trail · narration · ledger"]
-    END --> PUB[("publication, created once<br/>the export · the harness inventory")]
-    PUB --> EV["evaluator, its own job and principal<br/>grades every stored export against the sealed world"]
-    EV --> ART[("the evaluation artifact<br/>beside the key in the truth bucket")]
-    ART -->|"its aggregates, by a commit"| RES(["results: a committed public file<br/>the results page renders"])
+    PUB --> EV
 ```
+
+The words the diagram uses:
+
+| word | what it is |
+|---|---|
+| attempt | one try at a run; a run is retried after an infrastructure failure only |
+| admission | the admitter writes the ledger's reservation, the attempt row and the admission event together, so a rollback leaves nothing |
+| reservation | the most a run's dispatches can cost under the caps, taken against the ledger before the first model call |
+| claim | a process taking ownership of an attempt; an attempt has one writer at a time, and a claim always wins |
+| settlement | the run's reservation settled from its account at closure; carried by the closing event with the ledger updated in that transaction, so closing and settling are one transition |
+| sweeper | one pass over the demo's public attempts that reconciles what no process owns: a pure function from a snapshot to actions, each performed through the agent's own commands. Among them it closes a visitor's wait past its deadline |
+| harness inventory | what the store held at one snapshot, written by the agent and read by the evaluator |
+
+Where to start in the source:
+[`agent/work_order.py`](src/leaveimpact/agent/work_order.py) (the composition every
+root performs) ·
+[`agent/graph.py`](src/leaveimpact/agent/graph.py) (the loop) ·
+[`agent/log_transition.py`](src/leaveimpact/agent/log_transition.py) (which event may
+follow) ·
+[`agent/log_store.py`](src/leaveimpact/agent/log_store.py) (admission, the claim, the
+ledger) ·
+[`core/run_account.py`](src/leaveimpact/core/run_account.py) (a call's authorization
+against the run's account) ·
+[`evaluator/grading.py`](src/leaveimpact/evaluator/grading.py) (one outcome per export).
 
 What happens inside the work order, and where each part lives:
 
@@ -106,6 +135,40 @@ so everything both must read the same way lives in `core`: the claim vocabulary,
 rules, the tool declarations, the prefetch, the registration, the run export and its
 codec, the account and eligibility rules. The harness runs a `core` function and the
 evaluator's audit replays the same one over the export.
+
+---
+
+## What runs where
+
+| where | process | command |
+|---|---|---|
+| instance, container `app` (384m) | the demo surface | `python -m leaveimpact` |
+| instance, container `worker` (448m) | the worker service; one `work-one` child per attempt | `python -m leaveimpact.app worker` |
+| instance, container `postgres` (192m) | PostgreSQL 16 | |
+| instance, one run each per deploy | the cache job, the two schema bootstraps, the identity line | `leaveimpact.cache`, `leaveimpact.agent bootstrap-log`, `leaveimpact.app bootstrap`, `leaveimpact identity` |
+| instance, one or two runs per lifecycle word | an operator's run | `leaveimpact.launch` (the plan, then the status), `leaveimpact.agent admit`, `work`, `deliver-approval`, `publish`, `inventory` |
+| a GitHub runner, dispatched | generation, validation, evaluation, each under its own role | `leaveimpact.generator`, `leaveimpact.validator`, `leaveimpact.evaluator` |
+
+One image carries every command; a job is one command per execution with no queue
+between them, and the PostgreSQL log is the seam a second process continues from.
+
+## Where state lives
+
+| store | holds | written by |
+|---|---|---|
+| Frappe, Jira, Google Calendar | the organization as its systems of record hold it | the generator's projectors; every other principal reads |
+| PostgreSQL on the instance | the run log (attempt rows, events, the shared ledger, publication records) with the graph's checkpoints; the surface's own tables (publishable attempts, live rows); the corpus cache | `agent.log_store`; `app.store`; `adapters.corpus.loader` |
+| the world bucket | sealed worlds under a create-only prefix, the mutable projection checkpoint, validator verdicts, run exports and inventories | the generator; the validator's verdict; `agent publish` |
+| the truth bucket | the world spec, the truth manifest, evaluation artifacts | the generator; the evaluator |
+| the repository | the registration, the price table, the public results file, the demo configuration, the released golden world under `docs/` | a commit |
+
+Each PostgreSQL schema has one owner in the tree. `agent/log_schema.sql` and
+`app/schema.sql` are applied by the deploy's two bootstrap commands, and every
+connection refuses a schema version other than its code's; `adapters/corpus/schema.sql`
+is applied by the cache loader, which reads the table's columns back before it loads.
+The buckets' policies, the hosts,
+the proxy, the backup units and the instance's first-boot configuration belong to the
+platform repository; this tree consumes their names as configuration.
 
 ---
 
@@ -280,38 +343,6 @@ The seed identifies the semantic specification; the frozen bundle identifies the
 realized world (DESIGN, "Truth before prose"). Every later artifact, a run's export or
 an evaluation, records the world version and the truth digest, so a number months later
 is the same question about the same world.
-
-### Where state lives
-
-| store | holds | written by |
-|---|---|---|
-| Frappe, Jira, Google Calendar | the organization as its systems of record hold it | the generator's projectors; every other principal reads |
-| PostgreSQL on the instance | the run log (attempt rows, events, the shared ledger, publication records) with the graph's checkpoints; the surface's own tables (publishable attempts, live rows); the corpus cache | `agent.log_store`; `app.store`; `adapters.corpus.loader` |
-| the world bucket | sealed worlds under a create-only prefix, the mutable projection checkpoint, validator verdicts, run exports and inventories | the generator; the validator's verdict; `agent publish` |
-| the truth bucket | the world spec, the truth manifest, evaluation artifacts | the generator; the evaluator |
-| the repository | the registration, the price table, the public results file, the demo configuration, the released golden world under `docs/` | a commit |
-
-Each PostgreSQL schema has one owner in the tree. `agent/log_schema.sql` and
-`app/schema.sql` are applied by the deploy's two bootstrap commands, and every
-connection refuses a schema version other than its code's; `adapters/corpus/schema.sql`
-is applied by the cache loader, which reads the table's columns back before it loads.
-The buckets' policies, the hosts,
-the proxy, the backup units and the instance's first-boot configuration belong to the
-platform repository; this tree consumes their names as configuration.
-
-### What runs where
-
-| where | process | command |
-|---|---|---|
-| instance, container `app` (384m) | the demo surface | `python -m leaveimpact` |
-| instance, container `worker` (448m) | the worker service; one `work-one` child per attempt | `python -m leaveimpact.app worker` |
-| instance, container `postgres` (192m) | PostgreSQL 16 | |
-| instance, one run each per deploy | the cache job, the two schema bootstraps, the identity line | `leaveimpact.cache`, `leaveimpact.agent bootstrap-log`, `leaveimpact.app bootstrap`, `leaveimpact identity` |
-| instance, one or two runs per lifecycle word | an operator's run | `leaveimpact.launch` (the plan, then the status), `leaveimpact.agent admit`, `work`, `deliver-approval`, `publish`, `inventory` |
-| a GitHub runner, dispatched | generation, validation, evaluation, each under its own role | `leaveimpact.generator`, `leaveimpact.validator`, `leaveimpact.evaluator` |
-
-One image carries every command; a job is one command per execution with no queue
-between them, and the PostgreSQL log is the seam a second process continues from.
 
 ---
 
