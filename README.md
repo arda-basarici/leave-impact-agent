@@ -131,8 +131,8 @@ them.
 <img src="docs/screenshots/replay-evidence.png" alt="Part of a replay report: a deadline the leave affects with the Jira record behind it, and a candidate who cannot cover it with the component record behind that" width="560"/>
 </div>
 
-Going deeper from here: **[ARCHITECTURE](ARCHITECTURE.md)** is the five-minute
-read (the package ranks, how a world is built, how a run moves), and
+Going deeper from here: **[ARCHITECTURE](ARCHITECTURE.md)** is the tree as it
+stands (how a run moves, the package ranks, how a world is built), and
 **[DESIGN](DESIGN.md)** is the longer one, the decisions with the alternatives
 that lost. Behind it, [DESIGN_RECORD](DESIGN_RECORD.md) keeps every decision as
 it was recorded.
